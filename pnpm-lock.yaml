@@ -20,9 +20,6 @@ importers:
       '@electric-sql/react':
         specifier: ^1.0.41
         version: 1.0.41(react@19.2.4)
-      '@fontsource-variable/geist':
-        specifier: ^5.2.8
-        version: 5.2.8
       '@fontsource-variable/urbanist':
         specifier: ^5.2.7
         version: 5.2.7
@@ -35,6 +32,9 @@ importers:
       '@tanstack/db':
         specifier: ^0.5.33
         version: 0.5.33(typescript@5.9.3)
+      '@tanstack/electric-db-collection':
+        specifier: ^0.2.41
+        version: 0.2.41(typescript@5.9.3)
       '@tanstack/react-db':
         specifier: ^0.1.77
         version: 0.1.77(react@19.2.4)(typescript@5.9.3)
@@ -907,9 +907,6 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
-  '@fontsource-variable/geist@5.2.8':
-    resolution: {integrity: sha512-cJ6m9e+8MQ5dCYJsLylfZrgBh6KkG4bOLckB35Tr9J/EqdkEM6QllH5PxqP1dhTvFup+HtMRPuz9xOjxXJggxw==}
-
   '@fontsource-variable/urbanist@5.2.7':
     resolution: {integrity: sha512-OYeUoBQhwm3pbXG5yUxq1omO9H64Dx1eKxldKYOztrf+8GFG1vu3FP/zZpmFOwtgsPj2h6JYHX9VVWopSxvOyQ==}
 
@@ -1391,6 +1388,9 @@ packages:
     peerDependencies:
       typescript: '>=4.7'
 
+  '@tanstack/electric-db-collection@0.2.41':
+    resolution: {integrity: sha512-V8vmLrKrUYrATXtMTlAmAJ6PoDji4qf7iJ8pWqoxDgdHMGcgU0oOMbFSSHywRzscgVeKFRo+LJTSuZTrwTFn2A==}
+
   '@tanstack/pacer-lite@0.2.1':
     resolution: {integrity: sha512-3PouiFjR4B6x1c969/Pl4ZIJleof1M0n6fNX8NRiC9Sqv1g06CVDlEaXUR4212ycGFyfq4q+t8Gi37Xy+z34iQ==}
     engines: {node: '>=18'}
@@ -1407,6 +1407,9 @@ packages:
     resolution: {integrity: sha512-0Lu6y5t+tvlTJMTO7oh5NSpJfpg/5D41LlThfepTixPYkJ0sE2Jj0m0f6yYqujBwIXlId87e234+MxG3D3g7kg==}
     peerDependencies:
       react: ^18 || ^19
+
+  '@tanstack/store@0.8.1':
+    resolution: {integrity: sha512-PtOisLjUZPz5VyPRSCGjNOlwTvabdTBQ2K80DpVL1chGVr35WRxfeavAPdNq6pm/t7F8GhoR2qtmkkqtCEtHYw==}
 
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
@@ -3945,8 +3948,6 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
-  '@fontsource-variable/geist@5.2.8': {}
-
   '@fontsource-variable/urbanist@5.2.7': {}
 
   '@hexagon/base64@1.1.28': {}
@@ -4429,6 +4430,17 @@ snapshots:
       '@tanstack/pacer-lite': 0.2.1
       typescript: 5.9.3
 
+  '@tanstack/electric-db-collection@0.2.41(typescript@5.9.3)':
+    dependencies:
+      '@electric-sql/client': 1.5.12
+      '@standard-schema/spec': 1.1.0
+      '@tanstack/db': 0.5.33(typescript@5.9.3)
+      '@tanstack/store': 0.8.1
+      debug: 4.4.3
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
+
   '@tanstack/pacer-lite@0.2.1': {}
 
   '@tanstack/query-core@5.90.20': {}
@@ -4445,6 +4457,8 @@ snapshots:
     dependencies:
       '@tanstack/query-core': 5.90.20
       react: 19.2.4
+
+  '@tanstack/store@0.8.1': {}
 
   '@ts-morph/common@0.27.0':
     dependencies:

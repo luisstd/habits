@@ -7,7 +7,14 @@
 	},
 	"files": {
 		"ignoreUnknown": true,
-		"includes": ["**", "!!**/node_modules", "!!**/build", "!!**/.react-router", "!!**/.claude"]
+		"includes": [
+			"**",
+			"!!**/node_modules",
+			"!!**/build",
+			"!!**/.react-router",
+			"!!**/.claude",
+			"!!**/migrations/meta"
+		]
 	},
 	"formatter": {
 		"enabled": true,
