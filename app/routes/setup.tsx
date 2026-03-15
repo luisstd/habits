@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { redirect } from 'react-router'
 import { user } from '~/.server/db/auth-schema'
 import { db } from '~/.server/db/index'
+import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth.client'
 import type { Route } from './+types/setup'
 
@@ -38,13 +39,9 @@ export default function Setup() {
 					set up your passkey to get started
 				</p>
 				{step === 'start' && (
-					<button
-						type="button"
-						onClick={handleSetup}
-						className="w-full rounded-sm bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-					>
+					<Button className="w-full" onClick={handleSetup}>
 						register passkey
-					</button>
+					</Button>
 				)}
 				{step === 'registering' && (
 					<p className="text-center text-sm text-muted-foreground">
@@ -54,13 +51,9 @@ export default function Setup() {
 				{step === 'error' && (
 					<>
 						<p className="mb-4 text-center text-sm text-destructive">{error}</p>
-						<button
-							type="button"
-							onClick={() => setStep('start')}
-							className="w-full rounded-sm bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-						>
+						<Button className="w-full" onClick={() => setStep('start')}>
 							try again
-						</button>
+						</Button>
 					</>
 				)}
 			</div>

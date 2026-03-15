@@ -8,7 +8,7 @@ a local-first habit tracker. data lives in the browser, syncs with postgres via 
 |-------|--------|
 | runtime | node 22 + pnpm |
 | framework | react router v7 (ssr) |
-| ui | tailwind css |
+| ui | shadcn/ui + tailwind css |
 | data/sync | tanstack db + electric sql |
 | server db | postgres 16 |
 | orm | drizzle orm |

@@ -3,6 +3,7 @@ import { redirect } from 'react-router'
 import { auth } from '~/.server/auth'
 import { user } from '~/.server/db/auth-schema'
 import { db } from '~/.server/db/index'
+import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth.client'
 import type { Route } from './+types/login'
 
@@ -32,13 +33,9 @@ export default function Login() {
 				<h1 className="mb-6 text-center text-2xl font-semibold tracking-tight text-foreground">
 					habits
 				</h1>
-				<button
-					type="button"
-					onClick={handlePasskey}
-					className="w-full rounded-sm bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-				>
+				<Button className="w-full" onClick={handlePasskey}>
 					sign in with passkey
-				</button>
+				</Button>
 				{error && <p className="mt-4 text-center text-sm text-destructive">{error}</p>}
 			</div>
 		</div>

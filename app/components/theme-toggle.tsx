@@ -1,4 +1,5 @@
 import { useFetcher } from 'react-router'
+import { Button } from '~/components/ui/button'
 import { useTheme } from '~/lib/theme'
 
 export function ThemeToggle() {
@@ -9,12 +10,9 @@ export function ThemeToggle() {
 	return (
 		<fetcher.Form method="post" action="/set-theme">
 			<input type="hidden" name="theme" value={next} />
-			<button
-				type="submit"
-				className="rounded-sm border border-border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-muted"
-			>
+			<Button variant="outline" size="sm" type="submit">
 				{next}
-			</button>
+			</Button>
 		</fetcher.Form>
 	)
 }
