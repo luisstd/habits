@@ -6,6 +6,8 @@ import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth.client'
 import type { Route } from './+types/setup'
 
+export const meta: Route.MetaFunction = () => [{ title: 'setup — habits' }]
+
 export async function loader(_args: Route.LoaderArgs) {
 	const users = await db.select({ id: user.id }).from(user).limit(1)
 	if (users.length > 0) throw redirect('/login')

@@ -16,6 +16,15 @@ import './app.css'
 import { type Theme, themeCookie } from '~/lib/theme'
 import type { Route } from './+types/root'
 
+export const meta: Route.MetaFunction = () => [
+	{ title: 'habits' },
+	{ name: 'description', content: 'track your daily habits' },
+	{ name: 'theme-color', content: '#f8f6f2' },
+	{ property: 'og:title', content: 'habits' },
+	{ property: 'og:description', content: 'track your daily habits' },
+	{ property: 'og:type', content: 'website' },
+]
+
 export async function loader({ request }: Route.LoaderArgs) {
 	const theme = ((await themeCookie.parse(request.headers.get('cookie'))) as Theme) ?? 'light'
 	return { theme }
@@ -30,6 +39,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<link rel="icon" href="/favicon.ico" sizes="any" />
+				<meta name="apple-mobile-web-app-capable" content="yes" />
 				<Meta />
 				<Links />
 			</head>

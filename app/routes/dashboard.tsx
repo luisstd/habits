@@ -17,6 +17,9 @@ import { CollectionContext, useCollections } from '~/lib/collection-context.clie
 import { createHabitCollections } from '~/lib/collections.client'
 import { useResponsiveDayCount } from '~/lib/use-responsive-day-count'
 import { cn } from '~/lib/utils'
+import type { Route } from './+types/dashboard'
+
+export const meta: Route.MetaFunction = () => [{ title: 'habits' }]
 
 export function clientLoader() {
 	return {}
