@@ -23,6 +23,12 @@
 	--border: oklch(0.88 0.01 80);
 	--input: oklch(0.88 0.01 80);
 	--ring: oklch(0.55 0.22 25);
+	--habit-coral: oklch(0.65 0.2 25);
+	--habit-amber: oklch(0.75 0.17 80);
+	--habit-sage: oklch(0.65 0.12 155);
+	--habit-ocean: oklch(0.6 0.14 240);
+	--habit-iris: oklch(0.6 0.17 290);
+	--habit-rose: oklch(0.65 0.18 350);
 	--radius: 0.125rem;
 	--sidebar: oklch(0.97 0.005 80);
 	--sidebar-foreground: oklch(0.15 0.02 60);
@@ -58,6 +64,12 @@
 	--border: oklch(0.28 0.02 60);
 	--input: oklch(0.28 0.02 60);
 	--ring: oklch(0.65 0.22 25);
+	--habit-coral: oklch(0.72 0.18 25);
+	--habit-amber: oklch(0.8 0.15 80);
+	--habit-sage: oklch(0.72 0.1 155);
+	--habit-ocean: oklch(0.68 0.12 240);
+	--habit-iris: oklch(0.68 0.15 290);
+	--habit-rose: oklch(0.72 0.16 350);
 	--sidebar: oklch(0.18 0.02 60);
 	--sidebar-foreground: oklch(0.93 0.005 80);
 	--sidebar-primary: oklch(0.65 0.22 25);

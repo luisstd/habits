@@ -13,6 +13,14 @@ const createHabitSchema = z.object({
 	position: z.number().int().min(0),
 })
 
+const updateHabitSchema = z.object({
+	id: z.string().uuid(),
+	name: z.string().min(1).optional(),
+	color: z.string().min(1).optional(),
+	position: z.number().int().min(0).optional(),
+	archived: z.boolean().optional(),
+})
+
 const deleteHabitSchema = z.object({
 	id: z.string().uuid(),
 })
@@ -50,6 +58,28 @@ export const action = async ({ request }: Route.ActionArgs) => {
 						archived: data.archived,
 						position: data.position,
 					})
+					break
+				}
+
+				case 'updateHabit': {
+					const data = updateHabitSchema.parse(body.data)
+					const { id, ...fields } = data
+					const updates: Record<string, unknown> = {}
+					if (fields.name !== undefined) updates.name = fields.name
+					if (fields.color !== undefined) updates.color = fields.color
+					if (fields.position !== undefined) updates.position = fields.position
+					if (fields.archived !== undefined) updates.archived = fields.archived
+					if (Object.keys(updates).length === 0) {
+						throw new Error('No fields to update')
+					}
+					const updated = await tx
+						.update(habit)
+						.set(updates)
+						.where(and(eq(habit.id, id), eq(habit.userId, userId)))
+						.returning({ id: habit.id })
+					if (updated.length === 0) {
+						throw new Error('Not found or not owned')
+					}
 					break
 				}
 

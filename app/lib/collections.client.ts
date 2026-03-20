@@ -53,6 +53,11 @@ export const createHabitCollections = (baseUrl: string) => {
 				const { txid } = await syncMutation('createHabit', row)
 				return { txid }
 			},
+			onUpdate: async ({ transaction }) => {
+				const { original, changes } = transaction.mutations[0]
+				const { txid } = await syncMutation('updateHabit', { id: original.id, ...changes })
+				return { txid }
+			},
 			onDelete: async ({ transaction }) => {
 				const row = transaction.mutations[0].original
 				const { txid } = await syncMutation('deleteHabit', row)
