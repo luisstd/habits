@@ -167,7 +167,7 @@ const HabitRow = ({
 				>
 					<GripVertical className="size-4" />
 				</button>
-				<span className="truncate text-sm max-w-[100px] md:max-w-[160px]">{habit.name}</span>
+				<span className="truncate text-sm max-w-25 md:max-w-40">{habit.name}</span>
 				<button
 					type="button"
 					onClick={() => onDelete(habit.id)}
@@ -352,7 +352,7 @@ const HabitGrid = () => {
 					>
 						<ChevronLeft className="size-4" />
 					</button>
-					<span className="min-w-[120px] text-center text-sm text-muted-foreground">
+					<span className="min-w-30 text-center text-sm text-muted-foreground">
 						{formatDateRange(days)}
 					</span>
 					<button
