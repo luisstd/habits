@@ -2,7 +2,6 @@ import { index, layout, type RouteConfig, route } from '@react-router/dev/routes
 
 export default [
 	route('login', 'routes/login.tsx'),
-	route('setup', 'routes/setup.tsx'),
 	layout('routes/layout.tsx', [index('routes/dashboard.tsx')]),
 	route('api/auth/*', 'routes/api.auth.$.ts'),
 	route('api/health', 'routes/api.health.ts'),

@@ -1,12 +1,12 @@
 import { Outlet, redirect, useLoaderData } from 'react-router'
-import { auth } from '~/.server/auth'
+import { getAuthState } from '~/.server/auth'
 import { ThemeToggle } from '~/components/theme-toggle'
 import type { Route } from './+types/layout'
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session) throw redirect('/login')
-	return { userId: session.user.id }
+	const state = await getAuthState(request)
+	if (state.status !== 'authenticated') throw redirect('/login')
+	return { userId: state.userId }
 }
 
 export default function AppLayout() {
