@@ -15,7 +15,6 @@ import {
 } from '~/components/ui/dialog'
 import { Skeleton } from '~/components/ui/skeleton'
 import { CollectionContext, useCollections } from '~/lib/collection-context.client'
-import { createHabitCollections } from '~/lib/collections.client'
 import { formatDateRange, formatDay, getDays, getToday } from '~/lib/dates'
 import { computeReorder } from '~/lib/reorder'
 import {
@@ -27,6 +26,10 @@ import {
 } from '~/lib/use-responsive-day-count'
 import { cn } from '~/lib/utils'
 import type { Route } from './+types/dashboard'
+
+type HabitCollections = Awaited<
+	ReturnType<typeof import('~/lib/collections.client')['createHabitCollections']>
+>
 
 export const meta: Route.MetaFunction = () => [{ title: 'habits' }]
 
@@ -599,23 +602,23 @@ const HabitGrid = () => {
 
 export default function Dashboard() {
 	const { userId } = useOutletContext<{ userId: string }>()
-	const [collections, setCollections] = useState<Awaited<
-		ReturnType<typeof createHabitCollections>
-	> | null>(null)
+	const [collections, setCollections] = useState<HabitCollections | null>(null)
 	const closeRef = useRef<(() => Promise<void>) | null>(null)
 
 	useEffect(() => {
 		let cancelled = false
 
-		createHabitCollections(window.location.origin).then((c) => {
-			if (cancelled) {
-				c.close()
-				return
-			}
+		import('~/lib/collections.client')
+			.then(({ createHabitCollections }) => createHabitCollections(window.location.origin))
+			.then((c) => {
+				if (cancelled) {
+					c.close()
+					return
+				}
 
-			closeRef.current = c.close
-			setCollections(c)
-		})
+				closeRef.current = c.close
+				setCollections(c)
+			})
 
 		return () => {
 			cancelled = true
