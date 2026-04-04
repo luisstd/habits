@@ -64,25 +64,25 @@ export type CompletionCollection = Awaited<
 >['completionCollection']
 
 export const createHabitCollections = async (baseUrl: string) => {
-	const database = await openBrowserWASQLiteOPFSDatabase({
-		databaseName: 'habits.sqlite',
-	})
+	const [habitDb, completionDb] = await Promise.all([
+		openBrowserWASQLiteOPFSDatabase({ databaseName: 'habits.sqlite' }),
+		openBrowserWASQLiteOPFSDatabase({ databaseName: 'completions.sqlite' }),
+	])
 
-	const coordinator = new BrowserCollectionCoordinator({
-		dbName: 'habits',
-	})
+	const habitCoordinator = new BrowserCollectionCoordinator({ dbName: 'habits' })
+	const completionCoordinator = new BrowserCollectionCoordinator({ dbName: 'completions' })
 
 	const habitPersistence = createBrowserWASQLitePersistence<z.infer<typeof habitSchema>, string>({
-		database,
-		coordinator,
+		database: habitDb,
+		coordinator: habitCoordinator,
 	})
 
 	const completionPersistence = createBrowserWASQLitePersistence<
 		z.infer<typeof completionSchema>,
 		string
 	>({
-		database,
-		coordinator,
+		database: completionDb,
+		coordinator: completionCoordinator,
 	})
 
 	const habitCollection = createCollection(
@@ -150,8 +150,9 @@ export const createHabitCollections = async (baseUrl: string) => {
 		habitCollection,
 		completionCollection,
 		close: async () => {
-			coordinator.dispose()
-			await database.close?.()
+			habitCoordinator.dispose()
+			completionCoordinator.dispose()
+			await Promise.all([habitDb.close?.(), completionDb.close?.()])
 		},
 	}
 }
