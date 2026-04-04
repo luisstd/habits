@@ -10,10 +10,10 @@ import {
 	useRouteLoaderData,
 } from 'react-router'
 
-import '@fontsource-variable/urbanist'
+import '@fontsource-variable/urbanist/index.css'
 import './app.css'
 
-import { type Theme, themeCookie } from '~/lib/theme'
+import { getThemeScript, isThemePreference, type ThemePreference, themeCookie } from '~/lib/theme'
 import type { Route } from './+types/root'
 
 export const meta: Route.MetaFunction = () => [
@@ -26,22 +26,29 @@ export const meta: Route.MetaFunction = () => [
 ]
 
 export async function loader({ request }: Route.LoaderArgs) {
-	const theme = ((await themeCookie.parse(request.headers.get('cookie'))) as Theme) ?? 'light'
-	return { theme }
+	const parsedTheme = await themeCookie.parse(request.headers.get('cookie'))
+	const themePreference = isThemePreference(parsedTheme) ? parsedTheme : 'system'
+
+	return { themePreference }
+}
+
+function ThemeScript({ themePreference }: { themePreference: ThemePreference }) {
+	return <script suppressHydrationWarning>{getThemeScript(themePreference)}</script>
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
 	const loaderData = useRouteLoaderData<typeof loader>('root')
-	const theme = loaderData?.theme ?? 'light'
+	const themePreference = loaderData?.themePreference ?? 'system'
 
 	return (
-		<html lang="en" className={theme === 'dark' ? 'dark' : ''}>
+		<html lang="en" data-theme={themePreference} suppressHydrationWarning>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<link rel="icon" href="/favicon.ico" sizes="any" />
 				<meta name="apple-mobile-web-app-capable" content="yes" />
 				<meta name="mobile-web-app-capable" content="yes" />
+				<ThemeScript themePreference={themePreference} />
 				<Meta />
 				<Links />
 			</head>
