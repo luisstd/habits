@@ -27,6 +27,7 @@
 		"@fontsource-variable/urbanist": "^5.2.7",
 		"@react-router/node": "7.13.1",
 		"@react-router/serve": "7.13.1",
+		"@tanstack/browser-db-sqlite-persistence": "^0.1.6",
 		"@tanstack/db": "^0.6.2",
 		"@tanstack/electric-db-collection": "^0.3.0",
 		"@tanstack/react-db": "^0.1.80",

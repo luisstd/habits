@@ -2,7 +2,7 @@ import { DragDropProvider } from '@dnd-kit/react'
 import { useSortable } from '@dnd-kit/react/sortable'
 import { eq, useLiveQuery } from '@tanstack/react-db'
 import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router'
 import { Button } from '~/components/ui/button'
 import {
@@ -406,7 +406,32 @@ const HabitGrid = () => {
 
 export default function Dashboard() {
 	const { userId } = useOutletContext<{ userId: string }>()
-	const collections = useMemo(() => createHabitCollections(window.location.origin), [])
+	const [collections, setCollections] = useState<Awaited<
+		ReturnType<typeof createHabitCollections>
+	> | null>(null)
+	const closeRef = useRef<(() => Promise<void>) | null>(null)
+
+	useEffect(() => {
+		let cancelled = false
+		createHabitCollections(window.location.origin).then((c) => {
+			if (cancelled) {
+				c.close()
+				return
+			}
+			closeRef.current = c.close
+			setCollections(c)
+		})
+		return () => {
+			cancelled = true
+			closeRef.current?.()
+		}
+	}, [])
+
+	if (!collections) {
+		return (
+			<div className="flex items-center justify-center py-20 text-muted-foreground">Loading...</div>
+		)
+	}
 
 	return (
 		<CollectionContext value={collections} key={userId}>

@@ -32,6 +32,9 @@ importers:
       '@react-router/serve':
         specifier: 7.13.1
         version: 7.13.1(react-router@7.13.1(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(typescript@6.0.2)
+      '@tanstack/browser-db-sqlite-persistence':
+        specifier: ^0.1.6
+        version: 0.1.6(@journeyapps/wa-sqlite@1.5.0)(typescript@6.0.2)
       '@tanstack/db':
         specifier: ^0.6.2
         version: 0.6.2(typescript@6.0.2)
@@ -991,6 +994,9 @@ packages:
       '@types/node':
         optional: true
 
+  '@journeyapps/wa-sqlite@1.5.0':
+    resolution: {integrity: sha512-oASXW/9Ktbhn6kJjxCJzRKxNnlOyj7GKBLF/59dkz1kbOLw7kAXBTwWTUvqfT97OEshtrK/J8bJUYbpggdCZ9Q==}
+
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
 
@@ -1430,8 +1436,19 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
+  '@tanstack/browser-db-sqlite-persistence@0.1.6':
+    resolution: {integrity: sha512-VrvyxcpdkMTDshMkdBwE3JtgPZv7XDjwHKuRHZogPa2xMky7qtc7bmISuAUVR6+rbYU2J1IxB5MnRj/xiVdrNA==}
+    peerDependencies:
+      '@journeyapps/wa-sqlite': ^1.4.1
+      typescript: '>=4.7'
+
   '@tanstack/db-ivm@0.1.18':
     resolution: {integrity: sha512-+pZJiRKdoKRM5Epq9T7otD9ZJl82pRFauo7LKuJGrarjVKQ7r+QQlPe3kGdN9LEKSnuNGIWjX9OOY4M8kH4eLw==}
+    peerDependencies:
+      typescript: '>=4.7'
+
+  '@tanstack/db-sqlite-persistence-core@0.1.6':
+    resolution: {integrity: sha512-T9iLo3K4mq10rbFHLGlg8l07MpOlkes7UnhRc7k4c3153l0s35PpO+1WjtNsv6m6vNgmwRkE6RfKxuYaNqDWUA==}
     peerDependencies:
       typescript: '>=4.7'
 
@@ -4202,6 +4219,8 @@ snapshots:
     optionalDependencies:
       '@types/node': 25.5.2
 
+  '@journeyapps/wa-sqlite@1.5.0': {}
+
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
@@ -4646,10 +4665,22 @@ snapshots:
       tailwindcss: 4.2.2
       vite: 7.3.1(@types/node@25.5.2)(jiti@2.6.1)(lightningcss@1.32.0)(tsx@4.21.0)
 
+  '@tanstack/browser-db-sqlite-persistence@0.1.6(@journeyapps/wa-sqlite@1.5.0)(typescript@6.0.2)':
+    dependencies:
+      '@journeyapps/wa-sqlite': 1.5.0
+      '@tanstack/db-sqlite-persistence-core': 0.1.6(typescript@6.0.2)
+      typescript: 6.0.2
+
   '@tanstack/db-ivm@0.1.18(typescript@6.0.2)':
     dependencies:
       fractional-indexing: 3.2.0
       sorted-btree: 1.8.1
+      typescript: 6.0.2
+
+  '@tanstack/db-sqlite-persistence-core@0.1.6(typescript@6.0.2)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@tanstack/db': 0.6.2(typescript@6.0.2)
       typescript: 6.0.2
 
   '@tanstack/db@0.6.2(typescript@6.0.2)':

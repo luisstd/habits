@@ -1,3 +1,9 @@
+import {
+	BrowserCollectionCoordinator,
+	createBrowserWASQLitePersistence,
+	openBrowserWASQLiteOPFSDatabase,
+	persistedCollectionOptions,
+} from '@tanstack/browser-db-sqlite-persistence'
 import { createCollection } from '@tanstack/db'
 import { electricCollectionOptions } from '@tanstack/electric-db-collection'
 import { z } from 'zod'
@@ -52,62 +58,100 @@ export const upsertCompletion = (data: MutationPayload['upsertCompletion']) =>
 export const deleteCompletion = (data: MutationPayload['deleteCompletion']) =>
 	syncMutation('deleteCompletion', data)
 
-export type HabitCollection = ReturnType<typeof createHabitCollections>['habitCollection']
-export type CompletionCollection = ReturnType<typeof createHabitCollections>['completionCollection']
+export type HabitCollection = Awaited<ReturnType<typeof createHabitCollections>>['habitCollection']
+export type CompletionCollection = Awaited<
+	ReturnType<typeof createHabitCollections>
+>['completionCollection']
 
-export const createHabitCollections = (baseUrl: string) => {
-	const habitCollection = createCollection({
-		...electricCollectionOptions({
-			id: 'habits',
-			schema: habitSchema,
-			getKey: (h) => h.id,
-			shapeOptions: {
-				url: `${baseUrl}/api/shapes/habits`,
-				parser: {
-					timestamptz: (value: string) => new Date(value),
-				},
-			},
-			onInsert: async ({ transaction }) => {
-				const row = transaction.mutations[0].modified
-				const { txid } = await createHabit(row)
-				return { txid }
-			},
-			onUpdate: async ({ transaction }) => {
-				const { original, changes } = transaction.mutations[0]
-				const { txid } = await updateHabit({ id: original.id, ...changes })
-				return { txid }
-			},
-			onDelete: async ({ transaction }) => {
-				const row = transaction.mutations[0].original
-				const { txid } = await deleteHabit(row)
-				return { txid }
-			},
-		}),
+export const createHabitCollections = async (baseUrl: string) => {
+	const database = await openBrowserWASQLiteOPFSDatabase({
+		databaseName: 'habits.sqlite',
 	})
 
-	const completionCollection = createCollection({
-		...electricCollectionOptions({
-			id: 'completions',
-			schema: completionSchema,
-			getKey: (c) => c.id,
-			shapeOptions: {
-				url: `${baseUrl}/api/shapes/completions`,
-				parser: {
-					timestamptz: (value: string) => new Date(value),
-				},
-			},
-			onInsert: async ({ transaction }) => {
-				const row = transaction.mutations[0].modified
-				const { txid } = await upsertCompletion(row)
-				return { txid }
-			},
-			onDelete: async ({ transaction }) => {
-				const row = transaction.mutations[0].original
-				const { txid } = await deleteCompletion(row)
-				return { txid }
-			},
-		}),
+	const coordinator = new BrowserCollectionCoordinator({
+		dbName: 'habits',
 	})
 
-	return { habitCollection, completionCollection }
+	const habitPersistence = createBrowserWASQLitePersistence<z.infer<typeof habitSchema>, string>({
+		database,
+		coordinator,
+	})
+
+	const completionPersistence = createBrowserWASQLitePersistence<
+		z.infer<typeof completionSchema>,
+		string
+	>({
+		database,
+		coordinator,
+	})
+
+	const habitCollection = createCollection(
+		persistedCollectionOptions({
+			persistence: habitPersistence,
+			schemaVersion: 1,
+			...electricCollectionOptions({
+				id: 'habits',
+				schema: habitSchema,
+				getKey: (h) => h.id,
+				shapeOptions: {
+					url: `${baseUrl}/api/shapes/habits`,
+					parser: {
+						timestamptz: (value: string) => new Date(value),
+					},
+				},
+				onInsert: async ({ transaction }) => {
+					const row = transaction.mutations[0].modified
+					const { txid } = await createHabit(row)
+					return { txid }
+				},
+				onUpdate: async ({ transaction }) => {
+					const { original, changes } = transaction.mutations[0]
+					const { txid } = await updateHabit({ id: original.id, ...changes })
+					return { txid }
+				},
+				onDelete: async ({ transaction }) => {
+					const row = transaction.mutations[0].original
+					const { txid } = await deleteHabit(row)
+					return { txid }
+				},
+			}),
+		}),
+	)
+
+	const completionCollection = createCollection(
+		persistedCollectionOptions({
+			persistence: completionPersistence,
+			schemaVersion: 1,
+			...electricCollectionOptions({
+				id: 'completions',
+				schema: completionSchema,
+				getKey: (c) => c.id,
+				shapeOptions: {
+					url: `${baseUrl}/api/shapes/completions`,
+					parser: {
+						timestamptz: (value: string) => new Date(value),
+					},
+				},
+				onInsert: async ({ transaction }) => {
+					const row = transaction.mutations[0].modified
+					const { txid } = await upsertCompletion(row)
+					return { txid }
+				},
+				onDelete: async ({ transaction }) => {
+					const row = transaction.mutations[0].original
+					const { txid } = await deleteCompletion(row)
+					return { txid }
+				},
+			}),
+		}),
+	)
+
+	return {
+		habitCollection,
+		completionCollection,
+		close: async () => {
+			coordinator.dispose()
+			await database.close?.()
+		},
+	}
 }
