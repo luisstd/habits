@@ -4,7 +4,9 @@ import {
 	openBrowserWASQLiteOPFSDatabase,
 	persistedCollectionOptions,
 } from '@tanstack/browser-db-sqlite-persistence'
+import type { CollectionConfig } from '@tanstack/db'
 import { createCollection } from '@tanstack/db'
+import type { ElectricCollectionUtils } from '@tanstack/electric-db-collection'
 import { electricCollectionOptions } from '@tanstack/electric-db-collection'
 import { z } from 'zod'
 import type { MutationPayload, MutationType } from '~/lib/schemas'
@@ -26,6 +28,28 @@ const completionSchema = z.object({
 	date: z.string(),
 	created_at: z.date(),
 })
+
+type HabitRow = z.infer<typeof habitSchema>
+type CompletionRow = z.infer<typeof completionSchema>
+type CollectionKey = string | number
+type HabitCollectionConfig = CollectionConfig<
+	HabitRow,
+	CollectionKey,
+	typeof habitSchema,
+	ElectricCollectionUtils<HabitRow>
+> & { schema: typeof habitSchema }
+type CompletionCollectionConfig = CollectionConfig<
+	CompletionRow,
+	CollectionKey,
+	typeof completionSchema,
+	ElectricCollectionUtils<CompletionRow>
+> & { schema: typeof completionSchema }
+
+function requireSchema<TConfig extends { schema?: unknown }>(config: TConfig) {
+	// TanStack's persistedCollectionOptions currently widens schema to optional,
+	// but createCollection's schema-aware overload requires it to be present.
+	return config as TConfig & { schema: Exclude<TConfig['schema'], undefined> }
+}
 
 const syncMutation = async <T extends MutationType>(
 	type: T,
@@ -72,27 +96,24 @@ export const createHabitCollections = async (baseUrl: string) => {
 	const habitCoordinator = new BrowserCollectionCoordinator({ dbName: 'habits' })
 	const completionCoordinator = new BrowserCollectionCoordinator({ dbName: 'completions' })
 
-	const habitPersistence = createBrowserWASQLitePersistence<z.infer<typeof habitSchema>, string>({
+	const habitPersistence = createBrowserWASQLitePersistence<HabitRow, string | number>({
 		database: habitDb,
 		coordinator: habitCoordinator,
 	})
 
-	const completionPersistence = createBrowserWASQLitePersistence<
-		z.infer<typeof completionSchema>,
-		string
-	>({
+	const completionPersistence = createBrowserWASQLitePersistence<CompletionRow, string | number>({
 		database: completionDb,
 		coordinator: completionCoordinator,
 	})
 
-	const habitCollection = createCollection(
+	const habitCollectionOptions = requireSchema(
 		persistedCollectionOptions({
 			persistence: habitPersistence,
 			schemaVersion: 1,
 			...electricCollectionOptions({
 				id: 'habits',
 				schema: habitSchema,
-				getKey: (h) => h.id,
+				getKey: (habit) => habit.id,
 				shapeOptions: {
 					url: `${baseUrl}/api/shapes/habits`,
 					parser: {
@@ -116,16 +137,18 @@ export const createHabitCollections = async (baseUrl: string) => {
 				},
 			}),
 		}),
-	)
+	) satisfies HabitCollectionConfig
 
-	const completionCollection = createCollection(
+	const habitCollection = createCollection(habitCollectionOptions)
+
+	const completionCollectionOptions = requireSchema(
 		persistedCollectionOptions({
 			persistence: completionPersistence,
 			schemaVersion: 1,
 			...electricCollectionOptions({
 				id: 'completions',
 				schema: completionSchema,
-				getKey: (c) => c.id,
+				getKey: (completion) => completion.id,
 				shapeOptions: {
 					url: `${baseUrl}/api/shapes/completions`,
 					parser: {
@@ -144,7 +167,9 @@ export const createHabitCollections = async (baseUrl: string) => {
 				},
 			}),
 		}),
-	)
+	) satisfies CompletionCollectionConfig
+
+	const completionCollection = createCollection(completionCollectionOptions)
 
 	return {
 		habitCollection,

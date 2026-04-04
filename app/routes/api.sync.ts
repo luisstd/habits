@@ -2,14 +2,7 @@ import { and, eq, sql } from 'drizzle-orm'
 import { auth } from '~/.server/auth'
 import { db } from '~/.server/db/index'
 import { habit, habitCompletion } from '~/.server/db/schema'
-import {
-	createHabitSchema,
-	deleteCompletionSchema,
-	deleteHabitSchema,
-	type MutationType,
-	updateHabitSchema,
-	upsertCompletionSchema,
-} from '~/lib/schemas'
+import { syncMutationRequestSchema } from '~/lib/schemas'
 import type { Route } from './+types/api.sync'
 
 export const action = async ({ request }: Route.ActionArgs) => {
@@ -18,15 +11,15 @@ export const action = async ({ request }: Route.ActionArgs) => {
 		return Response.json({ error: 'Unauthorized' }, { status: 401 })
 	}
 
-	const body = await request.json()
-	const type = body.type as MutationType
+	const mutation = syncMutationRequestSchema.parse(await request.json())
+	const { type } = mutation
 	const userId = session.user.id
 
 	try {
 		const txid = await db.transaction(async (tx) => {
 			switch (type) {
 				case 'createHabit': {
-					const data = createHabitSchema.parse(body.data)
+					const data = mutation.data
 					await tx.insert(habit).values({
 						id: data.id,
 						userId,
@@ -39,7 +32,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
 				}
 
 				case 'updateHabit': {
-					const data = updateHabitSchema.parse(body.data)
+					const data = mutation.data
 					const { id, ...fields } = data
 					const updates: Record<string, unknown> = {}
 					if (fields.name !== undefined) updates.name = fields.name
@@ -61,7 +54,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
 				}
 
 				case 'deleteHabit': {
-					const data = deleteHabitSchema.parse(body.data)
+					const data = mutation.data
 					const deleted = await tx
 						.delete(habit)
 						.where(and(eq(habit.id, data.id), eq(habit.userId, userId)))
@@ -73,7 +66,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
 				}
 
 				case 'upsertCompletion': {
-					const data = upsertCompletionSchema.parse(body.data)
+					const data = mutation.data
 					const [ownsHabit] = await tx
 						.select({ id: habit.id })
 						.from(habit)
@@ -94,7 +87,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
 				}
 
 				case 'deleteCompletion': {
-					const data = deleteCompletionSchema.parse(body.data)
+					const data = mutation.data
 					await tx
 						.delete(habitCompletion)
 						.where(and(eq(habitCompletion.id, data.id), eq(habitCompletion.userId, userId)))

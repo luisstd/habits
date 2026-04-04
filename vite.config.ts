@@ -1,8 +1,11 @@
 import fs from 'node:fs'
+import type { IncomingMessage, ServerResponse } from 'node:http'
 import { reactRouter } from '@react-router/dev/vite'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 import tsconfigPaths from 'vite-tsconfig-paths'
+
+type Next = () => void
 
 export default defineConfig({
 	optimizeDeps: {
@@ -19,7 +22,7 @@ export default defineConfig({
 			configureServer(server) {
 				server.middlewares.stack.unshift({
 					route: '',
-					handle: (req: any, res: any, next: () => void) => {
+					handle: (req: IncomingMessage, res: ServerResponse, next: Next) => {
 						const url = (req.url ?? '').split('?')[0]
 						if (!url.endsWith('.wasm')) return next()
 
