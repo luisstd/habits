@@ -1,0 +1,44 @@
+import { z } from 'zod'
+
+export const createHabitSchema = z.object({
+	id: z.string().uuid(),
+	name: z.string().min(1),
+	color: z.string().min(1),
+	archived: z.boolean().optional().default(false),
+	position: z.number().int().min(0),
+})
+
+export const updateHabitSchema = z.object({
+	id: z.string().uuid(),
+	name: z.string().min(1).optional(),
+	color: z.string().min(1).optional(),
+	position: z.number().int().min(0).optional(),
+	archived: z.boolean().optional(),
+})
+
+export const deleteHabitSchema = z.object({
+	id: z.string().uuid(),
+})
+
+export const upsertCompletionSchema = z.object({
+	id: z.string().uuid(),
+	habit_id: z.string().uuid(),
+	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+})
+
+export const deleteCompletionSchema = z.object({
+	id: z.string().uuid(),
+})
+
+export const mutations = {
+	createHabit: createHabitSchema,
+	updateHabit: updateHabitSchema,
+	deleteHabit: deleteHabitSchema,
+	upsertCompletion: upsertCompletionSchema,
+	deleteCompletion: deleteCompletionSchema,
+} as const
+
+export type MutationType = keyof typeof mutations
+export type MutationPayload = {
+	[K in MutationType]: z.input<(typeof mutations)[K]>
+}

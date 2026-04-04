@@ -1,39 +1,16 @@
 import { and, eq, sql } from 'drizzle-orm'
-import { z } from 'zod'
 import { auth } from '~/.server/auth'
 import { db } from '~/.server/db/index'
 import { habit, habitCompletion } from '~/.server/db/schema'
+import {
+	createHabitSchema,
+	deleteCompletionSchema,
+	deleteHabitSchema,
+	updateHabitSchema,
+	upsertCompletionSchema,
+	type MutationType,
+} from '~/lib/schemas'
 import type { Route } from './+types/api.sync'
-
-const createHabitSchema = z.object({
-	id: z.string().uuid(),
-	name: z.string().min(1),
-	color: z.string().min(1),
-	archived: z.boolean().optional().default(false),
-	position: z.number().int().min(0),
-})
-
-const updateHabitSchema = z.object({
-	id: z.string().uuid(),
-	name: z.string().min(1).optional(),
-	color: z.string().min(1).optional(),
-	position: z.number().int().min(0).optional(),
-	archived: z.boolean().optional(),
-})
-
-const deleteHabitSchema = z.object({
-	id: z.string().uuid(),
-})
-
-const upsertCompletionSchema = z.object({
-	id: z.string().uuid(),
-	habit_id: z.string().uuid(),
-	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-})
-
-const deleteCompletionSchema = z.object({
-	id: z.string().uuid(),
-})
 
 export const action = async ({ request }: Route.ActionArgs) => {
 	const session = await auth.api.getSession({ headers: request.headers })
@@ -42,7 +19,7 @@ export const action = async ({ request }: Route.ActionArgs) => {
 	}
 
 	const body = await request.json()
-	const type = body.type
+	const type = body.type as MutationType
 	const userId = session.user.id
 
 	try {
@@ -124,8 +101,10 @@ export const action = async ({ request }: Route.ActionArgs) => {
 					break
 				}
 
-				default:
-					throw new Error(`Unknown mutation type: ${type}`)
+				default: {
+					const _exhaustive: never = type
+					throw new Error(`Unknown mutation type: ${_exhaustive}`)
+				}
 			}
 
 			const result = await tx.execute<{ txid: string }>(
