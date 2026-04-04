@@ -24,6 +24,11 @@ export default function Login() {
 
 	const needsPasskey = authState === 'needs-passkey'
 	const busy = flowState !== 'idle'
+	const registerLabel =
+		flowState === 'registering' ? "follow your browser's passkey prompt..." : 'create account'
+	const signInLabel = flowState === 'signing-in' ? 'authenticating...' : 'sign in with passkey'
+	const addPasskeyLabel =
+		flowState === 'registering' ? "follow your browser's passkey prompt..." : 'add passkey'
 
 	async function handleRegister() {
 		setFlowState('registering')
@@ -77,23 +82,17 @@ export default function Login() {
 						: 'sign in or create an account to get started'}
 				</p>
 
-				{busy ? (
-					<p className="text-center text-sm text-muted-foreground">
-						{flowState === 'registering'
-							? "follow your browser's passkey prompt..."
-							: 'authenticating...'}
-					</p>
-				) : needsPasskey ? (
-					<Button className="w-full" onClick={handleCompleteRegistration}>
-						add passkey
+				{needsPasskey ? (
+					<Button className="w-full" onClick={handleCompleteRegistration} disabled={busy}>
+						{addPasskeyLabel}
 					</Button>
 				) : (
 					<div className="flex flex-col gap-3">
-						<Button className="w-full" onClick={handleSignIn}>
-							sign in with passkey
+						<Button className="w-full" onClick={handleSignIn} disabled={busy}>
+							{signInLabel}
 						</Button>
-						<Button className="w-full" variant="outline" onClick={handleRegister}>
-							create account
+						<Button className="w-full" variant="outline" onClick={handleRegister} disabled={busy}>
+							{registerLabel}
 						</Button>
 					</div>
 				)}

@@ -13,11 +13,18 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from '~/components/ui/dialog'
+import { Skeleton } from '~/components/ui/skeleton'
 import { CollectionContext, useCollections } from '~/lib/collection-context.client'
 import { createHabitCollections } from '~/lib/collections.client'
 import { formatDateRange, formatDay, getDays, getToday } from '~/lib/dates'
 import { computeReorder } from '~/lib/reorder'
-import { useResponsiveDayCount } from '~/lib/use-responsive-day-count'
+import {
+	DASHBOARD_MAX_DAYS,
+	dashboardGridColsClassName,
+	dashboardVisibleRanges,
+	getResponsiveDayCount,
+	getResponsiveDayVisibilityClass,
+} from '~/lib/use-responsive-day-count'
 import { cn } from '~/lib/utils'
 import type { Route } from './+types/dashboard'
 
@@ -27,14 +34,59 @@ export function clientLoader() {
 	return {}
 }
 
+clientLoader.hydrate = true as const
+
 export function HydrateFallback() {
-	return (
-		<div className="flex items-center justify-center py-20 text-muted-foreground">Loading...</div>
-	)
+	return <DashboardSkeleton />
 }
 
 const HABIT_COLORS = ['coral', 'amber', 'sage', 'ocean', 'iris', 'rose'] as const
+const SKELETON_NAME_WIDTHS = ['w-14', 'w-18', 'w-16', 'w-20', 'w-15', 'w-22'] as const
+const DASHBOARD_SKELETON_ROWS = ['row-1', 'row-2', 'row-3', 'row-4', 'row-5', 'row-6'] as const
+
 type HabitColor = (typeof HABIT_COLORS)[number]
+type HabitRowData = { id: string; name: string; color: string; position: number }
+type CompletionRowData = { id: string; habit_id: string; date: string }
+
+function toHabitRowData(value: unknown): HabitRowData | null {
+	if (typeof value !== 'object' || value === null) return null
+
+	const row = value as Record<string, unknown>
+	if (
+		typeof row.id !== 'string' ||
+		typeof row.name !== 'string' ||
+		typeof row.color !== 'string' ||
+		typeof row.position !== 'number'
+	) {
+		return null
+	}
+
+	return {
+		id: row.id,
+		name: row.name,
+		color: row.color,
+		position: row.position,
+	}
+}
+
+function toCompletionRowData(value: unknown): CompletionRowData | null {
+	if (typeof value !== 'object' || value === null) return null
+
+	const row = value as Record<string, unknown>
+	if (
+		typeof row.id !== 'string' ||
+		typeof row.habit_id !== 'string' ||
+		typeof row.date !== 'string'
+	) {
+		return null
+	}
+
+	return {
+		id: row.id,
+		habit_id: row.habit_id,
+		date: row.date,
+	}
+}
 
 function habitColorVar(color: string) {
 	const resolved = HABIT_COLORS.includes(color as HabitColor) ? color : 'coral'
@@ -101,6 +153,117 @@ const AddHabitDialog = ({
 	)
 }
 
+function DashboardToolbar({
+	days,
+	offset,
+	onOlder,
+	onNewer,
+	onReset,
+	onAddHabit,
+	skeleton = false,
+}: {
+	days: string[]
+	offset: number
+	onOlder?: () => void
+	onNewer?: () => void
+	onReset?: () => void
+	onAddHabit?: () => void
+	skeleton?: boolean
+}) {
+	return (
+		<div className="mb-4 flex items-center justify-between gap-3">
+			<div className="flex min-w-0 items-center gap-2">
+				<button
+					type="button"
+					onClick={onOlder}
+					disabled={skeleton}
+					className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none"
+				>
+					<ChevronLeft className="size-4" />
+				</button>
+				<div className="min-w-30 text-center text-sm text-muted-foreground">
+					{dashboardVisibleRanges.map((range) => (
+						<span key={range.count} className={range.className}>
+							{formatDateRange(days.slice(-range.count))}
+						</span>
+					))}
+				</div>
+				<button
+					type="button"
+					onClick={onNewer}
+					disabled={skeleton || offset === 0}
+					className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+				>
+					<ChevronRight className="size-4" />
+				</button>
+				{offset > 0 && (
+					<button
+						type="button"
+						onClick={onReset}
+						className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+					>
+						today
+					</button>
+				)}
+			</div>
+			<div className="shrink-0">
+				<Button size="sm" variant="outline" onClick={onAddHabit} disabled={skeleton}>
+					+ add habit
+				</Button>
+			</div>
+		</div>
+	)
+}
+
+function DashboardHeader({ days, today }: { days: string[]; today: string }) {
+	return (
+		<div className={cn('grid items-center gap-x-0.5', dashboardGridColsClassName)}>
+			<div />
+			{days.map((date, index) => {
+				const { weekday, day } = formatDay(date)
+				const isToday = date === today
+
+				return (
+					<div
+						key={date}
+						className={cn(
+							'flex flex-col items-center pb-2 text-xs text-muted-foreground',
+							getResponsiveDayVisibilityClass(index),
+							isToday && 'font-medium text-foreground',
+						)}
+					>
+						<span>{weekday}</span>
+						<span
+							className={cn(
+								'flex size-6 items-center justify-center rounded-full text-[11px]',
+								isToday && 'bg-foreground text-background',
+							)}
+						>
+							{day}
+						</span>
+					</div>
+				)
+			})}
+		</div>
+	)
+}
+
+function DeleteHabitIcon() {
+	return (
+		<svg
+			width="14"
+			height="14"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+		>
+			<title>Delete</title>
+			<path d="M18 6 6 18M6 6l12 12" />
+		</svg>
+	)
+}
+
 const HabitRow = ({
 	habit,
 	days,
@@ -109,16 +272,14 @@ const HabitRow = ({
 	onToggle,
 	onDelete,
 	index,
-	gridCols,
 }: {
-	habit: { id: string; name: string; color: string; position: number }
+	habit: HabitRowData
 	days: string[]
 	today: string
 	completionSet: Set<string>
 	onToggle: (habitId: string, date: string) => void
 	onDelete: (id: string) => void
 	index: number
-	gridCols: string
 }) => {
 	const { ref, handleRef, isDragSource } = useSortable({
 		id: habit.id,
@@ -131,11 +292,13 @@ const HabitRow = ({
 	return (
 		<div
 			ref={ref}
-			className={cn('grid items-center', isDragSource && 'opacity-50')}
-			style={{ gridTemplateColumns: gridCols }}
+			className={cn(
+				'grid items-center gap-x-0.5',
+				dashboardGridColsClassName,
+				isDragSource && 'opacity-50',
+			)}
 		>
-			{/* Name cell */}
-			<div className="group/row flex items-center gap-1 pr-3">
+			<div className="group/row flex min-w-0 items-center gap-1 pr-3">
 				<button
 					type="button"
 					ref={handleRef}
@@ -144,38 +307,34 @@ const HabitRow = ({
 				>
 					<GripVertical className="size-4" />
 				</button>
-				<span className="truncate text-sm max-w-25 md:max-w-40">{habit.name}</span>
+				<span className="max-w-25 truncate text-sm md:max-w-40">{habit.name}</span>
 				<button
 					type="button"
 					onClick={() => onDelete(habit.id)}
 					className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-focus-within/row:opacity-100 group-hover/row:opacity-100"
 					title="Delete habit"
 				>
-					<svg
-						width="14"
-						height="14"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-					>
-						<title>Delete</title>
-						<path d="M18 6 6 18M6 6l12 12" />
-					</svg>
+					<DeleteHabitIcon />
 				</button>
 			</div>
 
-			{/* Day cells */}
-			{days.map((date) => {
+			{days.map((date, dayIndex) => {
 				const done = completionSet.has(`${habit.id}:${date}`)
 				const isToday = date === today
+
 				return (
-					<div key={date} className="flex items-center justify-center">
+					<div
+						key={date}
+						className={cn(
+							'flex items-center justify-center',
+							getResponsiveDayVisibilityClass(dayIndex),
+						)}
+					>
 						<button
 							type="button"
 							onClick={() => onToggle(habit.id, date)}
 							className={cn(
-								'size-10 md:size-11 rounded-sm transition-colors',
+								'size-10 rounded-sm transition-colors md:size-11',
 								isToday && 'ring-1 ring-foreground/10',
 								done
 									? 'opacity-90 hover:opacity-100'
@@ -192,11 +351,83 @@ const HabitRow = ({
 	)
 }
 
+function HabitRowSkeleton({
+	rowIndex,
+	days,
+	today,
+	habitName,
+}: {
+	rowIndex: number
+	days: string[]
+	today: string
+	habitName?: string
+}) {
+	return (
+		<div className={cn('grid items-center gap-x-0.5', dashboardGridColsClassName)}>
+			<div className="flex min-w-0 items-center gap-1 pr-3">
+				<div className="flex size-4 shrink-0 items-center justify-center text-muted-foreground/45">
+					<GripVertical className="size-4" />
+				</div>
+				{habitName ? (
+					<span className="max-w-25 truncate text-sm md:max-w-40">{habitName}</span>
+				) : (
+					<Skeleton
+						className={cn(
+							'h-3.5 rounded-sm border border-border/45 bg-muted/55 dark:border-border/55 dark:bg-muted/32',
+							SKELETON_NAME_WIDTHS[rowIndex % SKELETON_NAME_WIDTHS.length],
+						)}
+					/>
+				)}
+				<div className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground/0">
+					<DeleteHabitIcon />
+				</div>
+			</div>
+
+			{days.map((date, index) => (
+				<div
+					key={date}
+					className={cn('flex items-center justify-center', getResponsiveDayVisibilityClass(index))}
+				>
+					<Skeleton
+						className={cn(
+							'size-10 rounded-sm border border-border/45 bg-muted/48 md:size-11 dark:border-border/55 dark:bg-muted/26',
+							date === today &&
+								'border-foreground/14 bg-foreground/6 dark:border-foreground/18 dark:bg-foreground/7',
+						)}
+					/>
+				</div>
+			))}
+		</div>
+	)
+}
+
+function DashboardSkeleton({ offset = 0, habitNames }: { offset?: number; habitNames?: string[] }) {
+	const days = useMemo(() => getDays(DASHBOARD_MAX_DAYS, offset), [offset])
+	const today = getToday()
+	const rows = habitNames?.length ? habitNames : DASHBOARD_SKELETON_ROWS
+
+	return (
+		<div className="overflow-hidden">
+			<DashboardToolbar days={days} offset={offset} skeleton />
+			<DashboardHeader days={days} today={today} />
+			<div className="flex flex-col gap-y-1">
+				{rows.map((rowValue, rowIndex) => (
+					<HabitRowSkeleton
+						key={rowValue}
+						rowIndex={rowIndex}
+						days={days}
+						today={today}
+						habitName={habitNames?.[rowIndex]}
+					/>
+				))}
+			</div>
+		</div>
+	)
+}
+
 const HabitGrid = () => {
 	const { userId } = useOutletContext<{ userId: string }>()
 	const { habitCollection, completionCollection } = useCollections()
-	const { dayCount, cellRem } = useResponsiveDayCount()
-	const gridCols = `auto repeat(${dayCount}, ${cellRem})`
 
 	const { data: habits, isLoading: habitsLoading } = useLiveQuery((q) =>
 		q
@@ -210,30 +441,42 @@ const HabitGrid = () => {
 	)
 
 	const [offset, setOffset] = useState(0)
-	const days = useMemo(() => getDays(dayCount, offset), [dayCount, offset])
+	const days = useMemo(() => getDays(DASHBOARD_MAX_DAYS, offset), [offset])
 	const today = getToday()
+	const normalizedHabits = useMemo(
+		() =>
+			(habits ?? []).map(toHabitRowData).filter((habit): habit is HabitRowData => habit !== null),
+		[habits],
+	)
+	const normalizedCompletions = useMemo(
+		() =>
+			(completions ?? [])
+				.map(toCompletionRowData)
+				.filter((completion): completion is CompletionRowData => completion !== null),
+		[completions],
+	)
 
 	const completionSet = useMemo(() => {
 		const set = new Set<string>()
-		if (completions) {
-			for (const c of completions) {
-				set.add(`${c.habit_id}:${c.date}`)
-			}
+		for (const c of normalizedCompletions) {
+			set.add(`${c.habit_id}:${c.date}`)
 		}
 		return set
-	}, [completions])
+	}, [normalizedCompletions])
 
 	const completionLookup = useMemo(() => {
 		const map = new Map<string, string>()
-		if (completions) {
-			for (const c of completions) {
-				map.set(`${c.habit_id}:${c.date}`, c.id)
-			}
+		for (const c of normalizedCompletions) {
+			map.set(`${c.habit_id}:${c.date}`, c.id)
 		}
 		return map
-	}, [completions])
+	}, [normalizedCompletions])
 
 	const [dialogOpen, setDialogOpen] = useState(false)
+	const loadingHabitNames = useMemo(
+		() => normalizedHabits.map((habit) => habit.name),
+		[normalizedHabits],
+	)
 
 	const handleAddHabit = useCallback(
 		(name: string, color: HabitColor) => {
@@ -243,12 +486,12 @@ const HabitGrid = () => {
 				name,
 				color,
 				archived: false,
-				position: habits ? habits.length : 0,
+				position: normalizedHabits.length,
 				created_at: new Date(),
 			})
 			setDialogOpen(false)
 		},
-		[habitCollection, userId, habits],
+		[habitCollection, normalizedHabits.length, userId],
 	)
 
 	const handleDeleteHabit = useCallback(
@@ -282,12 +525,12 @@ const HabitGrid = () => {
 			operation: { source: { id: unknown } | null; target: { id: unknown } | null }
 			canceled: boolean
 		}) => {
-			if (event.canceled || !habits) return
+			if (event.canceled) return
 			const { source, target } = event.operation
 			if (!source || !target) return
 
 			const updates = computeReorder(
-				habits.map((h) => h.id),
+				normalizedHabits.map((h) => h.id),
 				String(source.id),
 				String(target.id),
 			)
@@ -299,85 +542,36 @@ const HabitGrid = () => {
 				})
 			}
 		},
-		[habits, habitCollection],
+		[habitCollection, normalizedHabits],
 	)
 
+	const handleOlder = useCallback(() => {
+		setOffset((currentOffset) => currentOffset + getResponsiveDayCount())
+	}, [])
+
+	const handleNewer = useCallback(() => {
+		setOffset((currentOffset) => Math.max(0, currentOffset - getResponsiveDayCount()))
+	}, [])
+
 	if (habitsLoading || completionsLoading) {
-		return (
-			<div className="flex items-center justify-center py-20 text-muted-foreground">Loading...</div>
-		)
+		return <DashboardSkeleton offset={offset} habitNames={loadingHabitNames} />
 	}
 
 	return (
 		<div className="overflow-hidden">
-			{/* Toolbar */}
-			<div className="mb-4 flex items-center justify-between">
-				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						onClick={() => setOffset((o) => o + dayCount)}
-						className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-					>
-						<ChevronLeft className="size-4" />
-					</button>
-					<span className="min-w-30 text-center text-sm text-muted-foreground">
-						{formatDateRange(days)}
-					</span>
-					<button
-						type="button"
-						onClick={() => setOffset((o) => Math.max(0, o - dayCount))}
-						disabled={offset === 0}
-						className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:pointer-events-none"
-					>
-						<ChevronRight className="size-4" />
-					</button>
-					{offset > 0 && (
-						<button
-							type="button"
-							onClick={() => setOffset(0)}
-							className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-						>
-							today
-						</button>
-					)}
-				</div>
-				<Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>
-					+ add habit
-				</Button>
-			</div>
+			<DashboardToolbar
+				days={days}
+				offset={offset}
+				onOlder={handleOlder}
+				onNewer={handleNewer}
+				onReset={() => setOffset(0)}
+				onAddHabit={() => setDialogOpen(true)}
+			/>
+			<DashboardHeader days={days} today={today} />
 
-			{/* Header row */}
-			<div className="grid items-center" style={{ gridTemplateColumns: gridCols }}>
-				<div />
-				{days.map((date) => {
-					const { weekday, day } = formatDay(date)
-					const isToday = date === today
-					return (
-						<div
-							key={date}
-							className={cn(
-								'flex flex-col items-center pb-2 text-xs text-muted-foreground',
-								isToday && 'text-foreground font-medium',
-							)}
-						>
-							<span>{weekday}</span>
-							<span
-								className={cn(
-									'flex size-6 items-center justify-center rounded-full text-[11px]',
-									isToday && 'bg-foreground text-background',
-								)}
-							>
-								{day}
-							</span>
-						</div>
-					)
-				})}
-			</div>
-
-			{/* Habit rows */}
 			<DragDropProvider onDragEnd={handleDragEnd}>
 				<div className="flex flex-col gap-y-1">
-					{habits?.map((h, index) => (
+					{normalizedHabits.map((h, index) => (
 						<HabitRow
 							key={h.id}
 							habit={h}
@@ -387,13 +581,12 @@ const HabitGrid = () => {
 							onToggle={handleToggle}
 							onDelete={handleDeleteHabit}
 							index={index}
-							gridCols={gridCols}
 						/>
 					))}
 				</div>
 			</DragDropProvider>
 
-			{habits?.length === 0 && (
+			{normalizedHabits.length === 0 && (
 				<p className="py-10 text-center text-muted-foreground">
 					no habits yet. add one to get started.
 				</p>
@@ -413,14 +606,17 @@ export default function Dashboard() {
 
 	useEffect(() => {
 		let cancelled = false
+
 		createHabitCollections(window.location.origin).then((c) => {
 			if (cancelled) {
 				c.close()
 				return
 			}
+
 			closeRef.current = c.close
 			setCollections(c)
 		})
+
 		return () => {
 			cancelled = true
 			closeRef.current?.()
@@ -428,9 +624,7 @@ export default function Dashboard() {
 	}, [])
 
 	if (!collections) {
-		return (
-			<div className="flex items-center justify-center py-20 text-muted-foreground">Loading...</div>
-		)
+		return <DashboardSkeleton />
 	}
 
 	return (

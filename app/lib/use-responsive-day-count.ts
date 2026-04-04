@@ -1,39 +1,42 @@
-import { useSyncExternalStore } from 'react'
+export const DASHBOARD_MAX_DAYS = 21
 
-const CELL_SM = 40 // 2.5rem — matches size-10
-const CELL_MD = 44 // 2.75rem — matches size-11
-const NAME_COL = 150 // approx name + grip + delete
-const MD_BREAKPOINT = 768
-const MIN_DAYS = 3
-const MAX_DAYS = 21
+const breakpointDayCounts = [
+	{ query: '(min-width: 1536px)', count: 21 },
+	{ query: '(min-width: 1280px)', count: 18 },
+	{ query: '(min-width: 1024px)', count: 14 },
+	{ query: '(min-width: 768px)', count: 10 },
+	{ query: '(min-width: 640px)', count: 7 },
+] as const
 
-function compute(): number {
-	const w = window.innerWidth
-	const isMd = w >= MD_BREAKPOINT
-	const padding = isMd ? 48 : 32
-	const cell = isMd ? CELL_MD : CELL_SM
-	const available = w - padding - NAME_COL
-	const dayCount = Math.max(MIN_DAYS, Math.min(MAX_DAYS, Math.floor(available / cell)))
-	// Encode both values: dayCount in lower bits, isMd flag in bit 8
-	return dayCount | (isMd ? 256 : 0)
+export const dashboardGridColsClassName =
+	'grid-cols-[minmax(0,1fr)_repeat(5,2.5rem)] sm:grid-cols-[minmax(0,1fr)_repeat(7,2.5rem)] md:grid-cols-[minmax(0,1fr)_repeat(10,2.75rem)] lg:grid-cols-[minmax(0,1fr)_repeat(14,2.75rem)] xl:grid-cols-[minmax(0,1fr)_repeat(18,2.75rem)] 2xl:grid-cols-[minmax(0,1fr)_repeat(21,2.75rem)]'
+
+export const dashboardVisibleRanges = [
+	{ count: 5, className: 'sm:hidden' },
+	{ count: 7, className: 'hidden sm:inline md:hidden' },
+	{ count: 10, className: 'hidden md:inline lg:hidden' },
+	{ count: 14, className: 'hidden lg:inline xl:hidden' },
+	{ count: 18, className: 'hidden xl:inline 2xl:hidden' },
+	{ count: 21, className: 'hidden 2xl:inline' },
+] as const
+
+export function getResponsiveDayCount() {
+	if (typeof window === 'undefined') return 5
+
+	for (const breakpoint of breakpointDayCounts) {
+		if (window.matchMedia(breakpoint.query).matches) {
+			return breakpoint.count
+		}
+	}
+
+	return 5
 }
 
-function subscribe(callback: () => void) {
-	window.addEventListener('resize', callback)
-	return () => window.removeEventListener('resize', callback)
-}
-
-function getSnapshot() {
-	return compute()
-}
-
-function getServerSnapshot() {
-	return 7
-}
-
-export function useResponsiveDayCount() {
-	const encoded = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
-	const dayCount = encoded & 0xff
-	const cellRem = encoded & 256 ? '2.75rem' : '2.5rem'
-	return { dayCount, cellRem }
+export function getResponsiveDayVisibilityClass(index: number) {
+	if (index >= DASHBOARD_MAX_DAYS - 5) return ''
+	if (index >= DASHBOARD_MAX_DAYS - 7) return 'hidden sm:flex'
+	if (index >= DASHBOARD_MAX_DAYS - 10) return 'hidden md:flex'
+	if (index >= DASHBOARD_MAX_DAYS - 14) return 'hidden lg:flex'
+	if (index >= DASHBOARD_MAX_DAYS - 18) return 'hidden xl:flex'
+	return 'hidden 2xl:flex'
 }

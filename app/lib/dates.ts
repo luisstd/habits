@@ -1,3 +1,5 @@
+import { Temporal } from '@js-temporal/polyfill'
+
 export function getToday(now?: Temporal.PlainDate): string {
 	return (now ?? Temporal.Now.plainDateISO()).toString()
 }
