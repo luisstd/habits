@@ -6,9 +6,9 @@ import {
 	createHabitSchema,
 	deleteCompletionSchema,
 	deleteHabitSchema,
+	type MutationType,
 	updateHabitSchema,
 	upsertCompletionSchema,
-	type MutationType,
 } from '~/lib/schemas'
 import type { Route } from './+types/api.sync'
 

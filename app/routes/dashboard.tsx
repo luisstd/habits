@@ -15,6 +15,8 @@ import {
 } from '~/components/ui/dialog'
 import { CollectionContext, useCollections } from '~/lib/collection-context.client'
 import { createHabitCollections } from '~/lib/collections.client'
+import { formatDateRange, formatDay, getDays, getToday } from '~/lib/dates'
+import { computeReorder } from '~/lib/reorder'
 import { useResponsiveDayCount } from '~/lib/use-responsive-day-count'
 import { cn } from '~/lib/utils'
 import type { Route } from './+types/dashboard'
@@ -37,34 +39,6 @@ type HabitColor = (typeof HABIT_COLORS)[number]
 function habitColorVar(color: string) {
 	const resolved = HABIT_COLORS.includes(color as HabitColor) ? color : 'coral'
 	return `var(--habit-${resolved})`
-}
-
-const getDays = (count: number, offset: number) => {
-	const days: string[] = []
-	const today = new Date()
-	for (let i = count - 1 + offset; i >= offset; i--) {
-		const d = new Date(today)
-		d.setDate(d.getDate() - i)
-		days.push(d.toISOString().slice(0, 10))
-	}
-	return days
-}
-
-const formatDay = (dateStr: string) => {
-	const d = new Date(`${dateStr}T12:00:00`)
-	return {
-		weekday: d.toLocaleDateString('en', { weekday: 'short' }).slice(0, 2),
-		day: d.getDate(),
-	}
-}
-
-const formatDateRange = (days: string[]) => {
-	if (days.length === 0) return ''
-	const fmt = (dateStr: string) => {
-		const d = new Date(`${dateStr}T12:00:00`)
-		return d.toLocaleDateString('en', { month: 'short', day: 'numeric' }).toLowerCase()
-	}
-	return `${fmt(days[0])} – ${fmt(days[days.length - 1])}`
 }
 
 const AddHabitDialog = ({
@@ -237,7 +211,7 @@ const HabitGrid = () => {
 
 	const [offset, setOffset] = useState(0)
 	const days = useMemo(() => getDays(dayCount, offset), [dayCount, offset])
-	const today = new Date().toISOString().slice(0, 10)
+	const today = getToday()
 
 	const completionSet = useMemo(() => {
 		const set = new Set<string>()
@@ -310,28 +284,19 @@ const HabitGrid = () => {
 		}) => {
 			if (event.canceled || !habits) return
 			const { source, target } = event.operation
-			if (!source || !target || source.id === target.id) return
+			if (!source || !target) return
 
-			const sourceId = String(source.id)
-			const targetId = String(target.id)
-			const ids = habits.map((h) => h.id)
-			const oldIndex = ids.indexOf(sourceId)
-			const newIndex = ids.indexOf(targetId)
-			if (oldIndex === -1 || newIndex === -1) return
+			const updates = computeReorder(
+				habits.map((h) => h.id),
+				String(source.id),
+				String(target.id),
+			)
+			if (!updates) return
 
-			// Compute new order
-			const reordered = [...ids]
-			reordered.splice(oldIndex, 1)
-			reordered.splice(newIndex, 0, sourceId)
-
-			// Update positions for all affected habits
-			for (let i = 0; i < reordered.length; i++) {
-				const habit = habits.find((h) => h.id === reordered[i])
-				if (habit && habit.position !== i) {
-					habitCollection.update(reordered[i], (draft) => {
-						draft.position = i
-					})
-				}
+			for (const { id, position } of updates) {
+				habitCollection.update(id, (draft) => {
+					draft.position = position
+				})
 			}
 		},
 		[habits, habitCollection],

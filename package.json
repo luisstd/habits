@@ -8,6 +8,8 @@
 		"start": "react-router-serve ./build/server/index.js",
 		"lint": "biome check .",
 		"format": "biome check --write .",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"typecheck": "react-router typegen && tsc",
 		"db:auth": "pnpx auth@latest generate --config ./app/.server/auth.ts --output ./app/.server/db/auth-schema.ts --yes",
 		"db:generate": "drizzle-kit generate",
@@ -45,6 +47,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.7",
+		"@js-temporal/polyfill": "^0.5.1",
 		"@react-router/dev": "7.13.1",
 		"@tailwindcss/vite": "^4.1.13",
 		"@types/node": "^22",
@@ -54,8 +57,9 @@
 		"drizzle-kit": "^0.31.9",
 		"drizzle-zod": "^0.8.3",
 		"tailwindcss": "^4.1.13",
-		"typescript": "^5.9.2",
+		"typescript": "^6.0.2",
 		"vite": "^7.1.7",
-		"vite-tsconfig-paths": "^5.1.4"
+		"vite-tsconfig-paths": "^5.1.4",
+		"vitest": "^4.1.2"
 	}
 }
