@@ -88,10 +88,20 @@ export type CompletionCollection = Awaited<
 >['completionCollection']
 
 export const createHabitCollections = async (baseUrl: string) => {
-	const [habitDb, completionDb] = await Promise.all([
-		openBrowserWASQLiteOPFSDatabase({ databaseName: 'habits.sqlite' }),
-		openBrowserWASQLiteOPFSDatabase({ databaseName: 'completions.sqlite' }),
-	])
+	const habitDb = await openBrowserWASQLiteOPFSDatabase({ databaseName: 'habits.sqlite' })
+
+	let completionDb: Awaited<ReturnType<typeof openBrowserWASQLiteOPFSDatabase>> | null = null
+
+	try {
+		completionDb = await openBrowserWASQLiteOPFSDatabase({ databaseName: 'completions.sqlite' })
+	} catch (error) {
+		try {
+			await Promise.resolve(habitDb.close?.())
+		} catch {
+			// Ignore cleanup failures when bootstrap itself already failed.
+		}
+		throw error
+	}
 
 	const habitCoordinator = new BrowserCollectionCoordinator({ dbName: 'habits' })
 	const completionCoordinator = new BrowserCollectionCoordinator({ dbName: 'completions' })
@@ -177,7 +187,7 @@ export const createHabitCollections = async (baseUrl: string) => {
 		close: async () => {
 			habitCoordinator.dispose()
 			completionCoordinator.dispose()
-			await Promise.all([habitDb.close?.(), completionDb.close?.()])
+			await Promise.all([habitDb.close?.(), completionDb?.close?.()])
 		},
 	}
 }

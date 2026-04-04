@@ -603,6 +603,7 @@ const HabitGrid = () => {
 export default function Dashboard() {
 	const { userId } = useOutletContext<{ userId: string }>()
 	const [collections, setCollections] = useState<HabitCollections | null>(null)
+	const [persistenceInitError, setPersistenceInitError] = useState<string | null>(null)
 	const closeRef = useRef<(() => Promise<void>) | null>(null)
 
 	useEffect(() => {
@@ -612,19 +613,39 @@ export default function Dashboard() {
 			.then(({ createHabitCollections }) => createHabitCollections(window.location.origin))
 			.then((c) => {
 				if (cancelled) {
-					c.close()
+					return Promise.resolve(c.close()).catch(() => undefined)
+				}
+
+				setPersistenceInitError(null)
+				closeRef.current = c.close
+				setCollections(c)
+			})
+			.catch((error: unknown) => {
+				if (cancelled) {
 					return
 				}
 
-				closeRef.current = c.close
-				setCollections(c)
+				closeRef.current = null
+				setCollections(null)
+				setPersistenceInitError(
+					error instanceof Error ? error.message : 'Failed to initialize local persistence.',
+				)
 			})
 
 		return () => {
 			cancelled = true
-			closeRef.current?.()
+			void closeRef.current?.()
 		}
 	}, [])
+
+	if (persistenceInitError) {
+		return (
+			<div className="py-10 text-center text-sm text-muted-foreground">
+				<p>failed to open local habit data.</p>
+				<p>{persistenceInitError}</p>
+			</div>
+		)
+	}
 
 	if (!collections) {
 		return <DashboardSkeleton />
