@@ -43,10 +43,15 @@ type RootThemeData = {
 export function useTheme() {
 	const data = useRouteLoaderData<RootThemeData>('root')
 	const themePreference = data?.themePreference ?? 'system'
+	const [mounted, setMounted] = useState(false)
 	const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
 		if (typeof document === 'undefined') return 'light'
 		return document.documentElement.classList.contains('dark') ? 'dark' : 'light'
 	})
+
+	useEffect(() => {
+		setMounted(true)
+	}, [])
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return
@@ -72,6 +77,7 @@ export function useTheme() {
 	}, [themePreference])
 
 	return {
+		mounted,
 		themePreference,
 		resolvedTheme,
 	}

@@ -25,7 +25,7 @@ const themeOptions = [
 }>
 
 export function ThemeToggle() {
-	const { themePreference, resolvedTheme } = useTheme()
+	const { mounted, themePreference, resolvedTheme } = useTheme()
 	const fetcher = useFetcher()
 	const pendingTheme = fetcher.formData?.get('theme')
 	const pendingPreference =
@@ -37,7 +37,7 @@ export function ThemeToggle() {
 		pendingPreference === 'light' || pendingPreference === 'dark'
 			? pendingPreference
 			: resolvedTheme
-	const TriggerIcon = pendingResolvedTheme === 'dark' ? Moon : Sun
+	const TriggerIcon = !mounted ? LaptopMinimal : pendingResolvedTheme === 'dark' ? Moon : Sun
 
 	return (
 		<DropdownMenu>
