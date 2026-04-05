@@ -50,7 +50,7 @@
 		"zod": "^4.3.6"
 	},
 	"lint-staged": {
-		"*.{js,jsx,ts,tsx,json,jsonc,css,md}": "pnpm exec biome check --write"
+		"*.{js,jsx,ts,tsx,json,jsonc,css}": "pnpm exec biome check --write"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.10",
