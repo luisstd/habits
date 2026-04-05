@@ -1,4 +1,4 @@
-FROM node:22-alpine AS deps
+FROM node:25-alpine AS deps
 WORKDIR /app
 RUN corepack enable pnpm
 COPY package.json pnpm-lock.yaml ./
@@ -8,7 +8,7 @@ FROM deps AS build
 COPY . .
 RUN pnpm build
 
-FROM node:22-alpine
+FROM node:25-alpine
 WORKDIR /app
 RUN corepack enable pnpm
 COPY package.json pnpm-lock.yaml ./
