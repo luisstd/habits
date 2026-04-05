@@ -56,18 +56,25 @@ app runs at `http://localhost:5173`
 ## architecture
 
 ```mermaid
-graph TD
-    UI[react ui] -->|useLiveQuery| TDB[tanstack db collections]
-    TDB -->|persist| OPFS[opfs + wa-sqlite]
-    TDB -->|optimistic mutations| API["/api/sync"]
-    API -->|drizzle transaction| PG[(postgres 16)]
-    PG -->|logical replication| EL[electric sql]
-    EL -->|shape streams| PROXY["/api/shapes/*"]
-    PROXY -->|syncs changes| TDB
+flowchart TB
+    subgraph browser
+        ui(react ui) ---|useLiveQuery| db(tanstack db)
+        db --- cache[(opfs · wa-sqlite)]
+    end
+
+    db -- mutations --> sync
+
+    subgraph server
+        sync("/api/sync") -->|drizzle| pg[(postgres)]
+        pg --> electric{{electric sql}}
+        electric --> shapes("/api/shapes/*")
+    end
+
+    shapes -. shape streams .-> db
 ```
 
-- **reads**: electric streams postgres changes -> shape proxy endpoints -> tanstack db collections -> opfs sqlite cache
-- **writes**: tanstack db optimistic mutation -> /api/sync -> drizzle transaction -> postgres -> electric streams back
+- **writes** flow down: tanstack db -> /api/sync -> drizzle -> postgres
+- **reads** stream up: postgres -> electric -> shape proxy -> tanstack db -> opfs cache
 
 ## deployment
 
