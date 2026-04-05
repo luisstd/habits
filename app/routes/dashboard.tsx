@@ -2,7 +2,7 @@ import { DragDropProvider } from '@dnd-kit/react'
 import { useSortable } from '@dnd-kit/react/sortable'
 import { eq, useLiveQuery } from '@tanstack/react-db'
 import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router'
 import { Button } from '~/components/ui/button'
 import {
@@ -523,19 +523,19 @@ const HabitGrid = () => {
 		[completionLookup, completionCollection, userId],
 	)
 
-	const handleDragEnd = useCallback(
-		(event: {
-			operation: { source: { id: unknown } | null; target: { id: unknown } | null }
-			canceled: boolean
-		}) => {
+	const handleDragEnd: ComponentProps<typeof DragDropProvider>['onDragEnd'] = useCallback(
+		(event) => {
 			if (event.canceled) return
-			const { source, target } = event.operation
-			if (!source || !target) return
+			const { source } = event.operation
+			if (!source || !('initialIndex' in source)) return
+
+			const fromIndex = source.initialIndex as number
+			const toIndex = (source as typeof source & { index: number }).index
 
 			const updates = computeReorder(
 				normalizedHabits.map((h) => h.id),
-				String(source.id),
-				String(target.id),
+				fromIndex,
+				toIndex,
 			)
 			if (!updates) return
 
