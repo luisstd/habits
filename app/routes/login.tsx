@@ -72,7 +72,7 @@ export default function Login() {
 
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-background">
-			<div className="w-full max-w-sm rounded-sm border border-border bg-card p-8">
+			<div className="w-full max-w-sm rounded-xl border border-foreground bg-card p-8 shadow-brutal-hover">
 				<h1 className="mb-2 text-center text-2xl font-semibold tracking-tight text-foreground">
 					habits
 				</h1>

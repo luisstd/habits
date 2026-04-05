@@ -43,7 +43,18 @@ export function HydrateFallback() {
 	return <DashboardSkeleton />
 }
 
-const HABIT_COLORS = ['coral', 'amber', 'sage', 'ocean', 'iris', 'rose'] as const
+const HABIT_COLORS = [
+	'marigold',
+	'coral',
+	'terracotta',
+	'sage',
+	'moss',
+	'ocean',
+	'slate',
+	'iris',
+	'lavender',
+	'rose',
+] as const
 const SKELETON_NAME_WIDTHS = ['w-14', 'w-18', 'w-16', 'w-20', 'w-15', 'w-22'] as const
 const DASHBOARD_SKELETON_ROWS = ['row-1', 'row-2', 'row-3', 'row-4', 'row-5', 'row-6'] as const
 
@@ -91,8 +102,11 @@ function toCompletionRowData(value: unknown): CompletionRowData | null {
 	}
 }
 
+const LEGACY_COLOR_MAP: Record<string, string> = { amber: 'marigold' }
+
 function habitColorVar(color: string) {
-	const resolved = HABIT_COLORS.includes(color as HabitColor) ? color : 'coral'
+	const mapped = LEGACY_COLOR_MAP[color] ?? color
+	const resolved = HABIT_COLORS.includes(mapped as HabitColor) ? mapped : 'coral'
 	return `var(--habit-${resolved})`
 }
 
@@ -127,17 +141,17 @@ const AddHabitDialog = ({
 					onChange={(e) => setName(e.target.value)}
 					onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
 					placeholder="habit name"
-					className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-ring"
+					className="h-9 w-full rounded-lg border border-foreground bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:shadow-brutal-sm"
 					autoFocus
 				/>
-				<div className="flex gap-2">
+				<div className="flex flex-wrap gap-2">
 					{HABIT_COLORS.map((c) => (
 						<button
 							key={c}
 							type="button"
 							onClick={() => setColor(c)}
 							className={cn(
-								'size-8 rounded-full transition-transform',
+								'size-8 rounded-full outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
 								color === c &&
 									'scale-110 ring-2 ring-foreground ring-offset-2 ring-offset-background',
 							)}
@@ -180,7 +194,7 @@ function DashboardToolbar({
 					type="button"
 					onClick={onOlder}
 					disabled={skeleton}
-					className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none"
+					className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none"
 				>
 					<ChevronLeft className="size-4" />
 				</button>
@@ -195,7 +209,7 @@ function DashboardToolbar({
 					type="button"
 					onClick={onNewer}
 					disabled={skeleton || offset === 0}
-					className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+					className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-30"
 				>
 					<ChevronRight className="size-4" />
 				</button>
@@ -203,7 +217,7 @@ function DashboardToolbar({
 					<button
 						type="button"
 						onClick={onReset}
-						className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+						className="rounded-lg text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 					>
 						today
 					</button>
@@ -314,7 +328,7 @@ const HabitRow = ({
 				<button
 					type="button"
 					onClick={() => onDelete(habit.id)}
-					className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-focus-within/row:opacity-100 group-hover/row:opacity-100"
+					className="shrink-0 rounded-lg text-muted-foreground opacity-0 outline-none transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background group-focus-within/row:opacity-100 group-hover/row:opacity-100"
 					title="Delete habit"
 				>
 					<DeleteHabitIcon />
@@ -337,13 +351,13 @@ const HabitRow = ({
 							type="button"
 							onClick={() => onToggle(habit.id, date)}
 							className={cn(
-								'size-10 rounded-sm transition-colors md:size-11',
+								'relative size-10 rounded-sm outline-none transition-colors focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:size-11',
 								isToday && 'ring-1 ring-foreground/10',
 								done
-									? 'opacity-90 hover:opacity-100'
+									? 'opacity-85 hover:opacity-100'
 									: isToday
-										? 'border-2 border-current opacity-20 hover:opacity-30'
-										: 'border border-dashed border-current opacity-15 hover:opacity-25',
+										? 'border-2 border-current opacity-20 hover:opacity-40'
+										: 'border border-dashed border-current opacity-15 hover:opacity-35',
 							)}
 							style={done ? { backgroundColor: bgVar } : { color: bgVar }}
 						/>
@@ -368,7 +382,7 @@ function HabitRowSkeleton({
 	return (
 		<div className={cn('grid items-center gap-x-0.5', dashboardGridColsClassName)}>
 			<div className="flex min-w-0 items-center gap-1 pr-3">
-				<div className="flex size-4 shrink-0 items-center justify-center text-muted-foreground/45">
+				<div className="flex size-4 shrink-0 items-center justify-center text-muted-foreground/40">
 					<GripVertical className="size-4" />
 				</div>
 				{habitName ? (
@@ -376,7 +390,7 @@ function HabitRowSkeleton({
 				) : (
 					<Skeleton
 						className={cn(
-							'h-3.5 rounded-sm border border-border/45 bg-muted/55 dark:border-border/55 dark:bg-muted/32',
+							'h-3.5 rounded-sm border border-border/40 bg-muted/50 dark:border-border/50 dark:bg-muted/20',
 							SKELETON_NAME_WIDTHS[rowIndex % SKELETON_NAME_WIDTHS.length],
 						)}
 					/>
@@ -393,9 +407,9 @@ function HabitRowSkeleton({
 				>
 					<Skeleton
 						className={cn(
-							'size-10 rounded-sm border border-border/45 bg-muted/48 md:size-11 dark:border-border/55 dark:bg-muted/26',
+							'size-10 rounded-sm border border-border/40 bg-muted/50 md:size-11 dark:border-border/50 dark:bg-muted/20',
 							date === today &&
-								'border-foreground/14 bg-foreground/6 dark:border-foreground/18 dark:bg-foreground/7',
+								'border-foreground/15 bg-foreground/5 dark:border-foreground/20 dark:bg-foreground/8',
 						)}
 					/>
 				</div>
@@ -410,7 +424,7 @@ function DashboardSkeleton({ offset = 0, habitNames }: { offset?: number; habitN
 	const rows = habitNames?.length ? habitNames : DASHBOARD_SKELETON_ROWS
 
 	return (
-		<div className="overflow-hidden">
+		<div>
 			<DashboardToolbar days={days} offset={offset} skeleton />
 			<DashboardHeader days={days} today={today} />
 			<div className="flex flex-col gap-y-1">
@@ -561,7 +575,7 @@ const HabitGrid = () => {
 	}
 
 	return (
-		<div className="overflow-hidden">
+		<div>
 			<DashboardToolbar
 				days={days}
 				offset={offset}
