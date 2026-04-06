@@ -12,7 +12,7 @@ FROM node:25-alpine
 WORKDIR /app
 RUN npm install -g pnpm
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=build /app/build ./build
 EXPOSE 3000
 ENV PORT=3000
