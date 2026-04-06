@@ -6,3 +6,9 @@ build
 .env.local
 .git
 .claude
+.husky
+*.md
+biome.json
+vitest.config.ts
+railway.json
+coverage
