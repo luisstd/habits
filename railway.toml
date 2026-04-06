@@ -1,16 +1,6 @@
 [build]
 builder = "RAILPACK"
 buildCommand = "pnpm build"
-watchPatterns = [
-  "app/**",
-  "public/**",
-  "package.json",
-  "pnpm-lock.yaml",
-  "vite.config.ts",
-  "react-router.config.ts",
-  "tsconfig.json",
-  "drizzle.config.ts",
-]
 
 [deploy]
 startCommand = "pnpm start"
