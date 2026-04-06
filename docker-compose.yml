@@ -27,5 +27,22 @@ services:
       postgres:
         condition: service_healthy
 
+  app:
+    profiles: ['full']
+    build: .
+    ports:
+      - '5173:3000'
+    environment:
+      DATABASE_URL: postgresql://habits:habits@postgres:5432/habits
+      ELECTRIC_URL: http://electric:3000
+      BETTER_AUTH_SECRET: dev-secret-change-me
+      RP_ID: localhost
+      AUTH_ORIGIN: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+      electric:
+        condition: service_started
+
 volumes:
   pgdata:

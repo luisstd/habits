@@ -1,8 +1,21 @@
 [build]
-dockerfilePath = "Dockerfile"
+builder = "RAILPACK"
+buildCommand = "pnpm build"
+watchPatterns = [
+  "app/**",
+  "public/**",
+  "package.json",
+  "pnpm-lock.yaml",
+  "vite.config.ts",
+  "react-router.config.ts",
+  "tsconfig.json",
+  "drizzle.config.ts",
+]
 
 [deploy]
+startCommand = "pnpm start"
+preDeployCommand = ["pnpm db:migrate"]
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
-restartPolicyType = "on_failure"
+restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
