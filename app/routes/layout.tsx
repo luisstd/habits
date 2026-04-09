@@ -18,7 +18,7 @@ export default function AppLayout() {
 				<h1 className="text-lg font-semibold tracking-tight">habits</h1>
 				<ThemeToggle />
 			</header>
-			<main className="p-4 sm:p-6">
+			<main className="px-4 pt-3 pb-4 sm:p-6">
 				<Outlet context={{ userId }} />
 			</main>
 		</div>

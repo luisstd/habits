@@ -141,7 +141,7 @@ const AddHabitDialog = ({
 					onChange={(e) => setName(e.target.value)}
 					onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
 					placeholder="habit name"
-					className="h-9 w-full rounded-lg border border-foreground bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:shadow-brutal-sm"
+					className="h-9 w-full rounded-lg border border-foreground bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:shadow-brutal-sm"
 					autoFocus
 				/>
 				<div className="flex flex-wrap gap-2">
@@ -151,7 +151,7 @@ const AddHabitDialog = ({
 							type="button"
 							onClick={() => setColor(c)}
 							className={cn(
-								'size-8 rounded-full outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+								'size-9 rounded-full outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
 								color === c &&
 									'scale-110 ring-2 ring-foreground ring-offset-2 ring-offset-background',
 							)}
@@ -224,7 +224,7 @@ function DashboardToolbar({
 				)}
 			</div>
 			<div className="shrink-0">
-				<Button size="sm" variant="outline" onClick={onAddHabit} disabled={skeleton}>
+				<Button variant="outline" onClick={onAddHabit} disabled={skeleton}>
 					+ add habit
 				</Button>
 			</div>
