@@ -53,6 +53,13 @@
 	"lint-staged": {
 		"*.{js,jsx,ts,tsx,json,jsonc,css}": "pnpm exec biome check --write"
 	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"@biomejs/biome",
+			"esbuild",
+			"husky"
+		]
+	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.10",
 		"@react-router/dev": "7.13.1",
