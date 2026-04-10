@@ -1,6 +1,7 @@
 import { Outlet, redirect, useLoaderData } from 'react-router'
 import { getAuthState } from '~/.server/auth'
 import { ThemeToggle } from '~/components/theme-toggle'
+import { useForegroundAuthCheck } from '~/lib/use-foreground-auth-check'
 import type { Route } from './+types/layout'
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
@@ -11,6 +12,7 @@ export const loader = async ({ request }: Route.LoaderArgs) => {
 
 export default function AppLayout() {
 	const { userId } = useLoaderData<typeof loader>()
+	useForegroundAuthCheck()
 
 	return (
 		<div className="min-h-screen">

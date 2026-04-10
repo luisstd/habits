@@ -1,3 +1,4 @@
+import { FetchError } from '@electric-sql/client'
 import {
 	BrowserCollectionCoordinator,
 	createBrowserWASQLitePersistence,
@@ -51,20 +52,45 @@ function requireSchema<TConfig extends { schema?: unknown }>(config: TConfig) {
 	return config as TConfig & { schema: Exclude<TConfig['schema'], undefined> }
 }
 
+function dispatchAuthExpired() {
+	window.dispatchEvent(new CustomEvent('sync:auth-expired'))
+}
+
+const RETRY_DELAYS = [1000, 2000, 4000]
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504])
+
 const syncMutation = async <T extends MutationType>(
 	type: T,
 	data: MutationPayload[T],
 ): Promise<{ txid: number }> => {
-	const res = await fetch('/api/sync', {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ type, data }),
-	})
-	if (!res.ok) {
-		const body = await res.json().catch(() => ({}))
-		throw new Error(body.error ?? `Sync failed: ${res.status}`)
+	for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+		try {
+			const res = await fetch('/api/sync', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ type, data }),
+			})
+			if (res.ok) return res.json()
+
+			if (res.status === 401) {
+				dispatchAuthExpired()
+				throw new Error('Session expired')
+			}
+			if (attempt < RETRY_DELAYS.length && RETRYABLE_STATUSES.has(res.status)) {
+				await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]))
+				continue
+			}
+			const body = await res.json().catch(() => ({}))
+			throw new Error(body.error ?? `Sync failed: ${res.status}`)
+		} catch (e) {
+			if (e instanceof TypeError && attempt < RETRY_DELAYS.length) {
+				await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]))
+				continue
+			}
+			throw e
+		}
 	}
-	return res.json()
+	throw new Error('Sync failed: retries exhausted')
 }
 
 export const createHabit = (data: MutationPayload['createHabit']) =>
@@ -114,6 +140,11 @@ export const createHabitCollections = async (baseUrl: string) => {
 					parser: {
 						timestamptz: (value: string) => new Date(value),
 					},
+					onError: (error) => {
+						if (error instanceof FetchError && error.status === 401) {
+							dispatchAuthExpired()
+						}
+					},
 				},
 				onInsert: async ({ transaction }) => {
 					const row = transaction.mutations[0].modified
@@ -148,6 +179,11 @@ export const createHabitCollections = async (baseUrl: string) => {
 					url: `${baseUrl}/api/shapes/completions`,
 					parser: {
 						timestamptz: (value: string) => new Date(value),
+					},
+					onError: (error) => {
+						if (error instanceof FetchError && error.status === 401) {
+							dispatchAuthExpired()
+						}
 					},
 				},
 				onInsert: async ({ transaction }) => {
