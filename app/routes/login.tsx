@@ -5,7 +5,7 @@ import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth.client'
 import type { Route } from './+types/login'
 
-export const meta: Route.MetaFunction = () => [{ title: 'sign in — habits' }]
+export const meta: Route.MetaFunction = () => [{ title: 'habits' }]
 
 export async function loader({ request }: Route.LoaderArgs) {
 	const state = await getAuthState(request)

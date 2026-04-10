@@ -33,6 +33,8 @@ export function getThemeScript(preference: ThemePreference) {
 		root.classList.toggle('dark', resolvedTheme === 'dark');
 		root.style.colorScheme = resolvedTheme;
 		root.dataset.theme = preference;
+		const meta = document.querySelector('meta[name="theme-color"]');
+		if (meta) meta.setAttribute('content', resolvedTheme === 'dark' ? '#2b2523' : '#fafafa');
 	})();`
 }
 
@@ -63,6 +65,8 @@ export function useTheme() {
 			document.documentElement.classList.toggle('dark', nextResolvedTheme === 'dark')
 			document.documentElement.style.colorScheme = nextResolvedTheme
 			document.documentElement.dataset.theme = themePreference
+			const meta = document.querySelector('meta[name="theme-color"]')
+			if (meta) meta.setAttribute('content', nextResolvedTheme === 'dark' ? '#2b2523' : '#fafafa')
 			setResolvedTheme(nextResolvedTheme)
 		}
 
