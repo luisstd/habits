@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
 	isRouteErrorResponse,
 	Links,
@@ -48,7 +48,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 				<link rel="icon" href="/favicon.ico" sizes="32x32" />
 				<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-				<link rel="manifest" href="/site.webmanifest" />
+				<link rel="manifest" href="/manifest.webmanifest" />
 				<meta name="apple-mobile-web-app-capable" content="yes" />
 				<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 				<meta name="mobile-web-app-capable" content="yes" />
@@ -67,6 +67,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
 	const [queryClient] = useState(() => new QueryClient())
+
+	useEffect(() => {
+		import('~/lib/pwa-registration.client').then((m) => m.registerSW())
+	}, [])
 
 	return (
 		<QueryClientProvider client={queryClient}>

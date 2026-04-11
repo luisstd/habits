@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { reactRouter } from '@react-router/dev/vite'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import tsconfigPaths from 'vite-tsconfig-paths'
 
 type Next = () => void
@@ -42,6 +43,58 @@ export default defineConfig({
 		},
 		tailwindcss(),
 		reactRouter(),
+		VitePWA({
+			registerType: 'autoUpdate',
+			injectRegister: false,
+			manifest: {
+				id: '/',
+				name: 'habits',
+				short_name: 'habits',
+				description: 'track your daily habits',
+				start_url: '/',
+				scope: '/',
+				display: 'standalone',
+				display_override: ['standalone'],
+				orientation: 'portrait',
+				theme_color: '#fafafa',
+				background_color: '#fafafa',
+				categories: ['lifestyle', 'productivity'],
+				icons: [
+					{ src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+					{ src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+					{ src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+				],
+			},
+			workbox: {
+				globPatterns: ['**/*.{js,css,html,woff2,png,svg,ico,wasm}'],
+				navigateFallback: null,
+				navigateFallbackDenylist: [/^\/api\//],
+				runtimeCaching: [
+					{
+						urlPattern: ({ request }) => request.mode === 'navigate',
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'html-cache',
+							networkTimeoutSeconds: 3,
+							plugins: [
+								{
+									cacheWillUpdate: async ({ response }) =>
+										response.status === 200 ? response : null,
+								},
+							],
+						},
+					},
+					{
+						urlPattern: /\.woff2$/,
+						handler: 'CacheFirst',
+						options: {
+							cacheName: 'font-cache',
+							expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+						},
+					},
+				],
+			},
+		}),
 		tsconfigPaths(),
 	],
 })
