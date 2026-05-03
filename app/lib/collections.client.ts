@@ -117,12 +117,12 @@ export const createHabitCollections = async (baseUrl: string) => {
 	const db = await openBrowserWASQLiteOPFSDatabase({ databaseName: 'habits.sqlite' })
 	const coordinator = new BrowserCollectionCoordinator({ dbName: 'habits' })
 
-	const habitPersistence = createBrowserWASQLitePersistence<HabitRow, string | number>({
+	const habitPersistence = createBrowserWASQLitePersistence({
 		database: db,
 		coordinator,
 	})
 
-	const completionPersistence = createBrowserWASQLitePersistence<CompletionRow, string | number>({
+	const completionPersistence = createBrowserWASQLitePersistence({
 		database: db,
 		coordinator,
 	})
