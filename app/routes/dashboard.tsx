@@ -2,8 +2,18 @@ import { DragDropProvider } from '@dnd-kit/react'
 import { useSortable } from '@dnd-kit/react/sortable'
 import { eq, useLiveQuery } from '@tanstack/react-db'
 import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react'
-import { type ComponentProps, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+	type ComponentProps,
+	type CSSProperties,
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
 import { useOutletContext } from 'react-router'
+import { ConsistencyBar } from '~/components/consistency-bar'
 import { Button } from '~/components/ui/button'
 import {
 	Dialog,
@@ -15,15 +25,16 @@ import {
 } from '~/components/ui/dialog'
 import { Skeleton } from '~/components/ui/skeleton'
 import { CollectionContext, useCollections } from '~/lib/collection-context.client'
-import { formatDateRange, formatDay, getDays, getToday } from '~/lib/dates'
-import { computeReorder } from '~/lib/reorder'
 import {
-	DASHBOARD_MAX_DAYS,
-	dashboardGridColsClassName,
-	dashboardVisibleRanges,
-	getResponsiveDayCount,
-	getResponsiveDayVisibilityClass,
-} from '~/lib/use-responsive-day-count'
+	chunkIntoWeeks,
+	formatWeekRangeLabel,
+	getDayMeta,
+	getToday,
+	getWeekAlignedRange,
+} from '~/lib/dates'
+import { HABIT_COLORS, type HabitColor, habitColorVar, nextHabitColor } from '~/lib/habit-colors'
+import { computeReorder } from '~/lib/reorder'
+import { DEFAULT_VIEW, useResponsiveView, type View } from '~/lib/use-responsive-view'
 import { cn } from '~/lib/utils'
 import type { Route } from './+types/dashboard'
 
@@ -43,26 +54,14 @@ export function HydrateFallback() {
 	return <DashboardSkeleton />
 }
 
-const HABIT_COLORS = [
-	'marigold',
-	'coral',
-	'terracotta',
-	'sage',
-	'moss',
-	'ocean',
-	'slate',
-	'iris',
-	'lavender',
-	'rose',
-] as const
 const SKELETON_NAME_WIDTHS = ['w-14', 'w-18', 'w-16', 'w-20', 'w-15', 'w-22'] as const
 const DASHBOARD_SKELETON_ROWS = ['row-1', 'row-2', 'row-3', 'row-4', 'row-5', 'row-6'] as const
+const CONSISTENCY_WINDOW = 21
 
-type HabitColor = (typeof HABIT_COLORS)[number]
 type HabitRowData = { id: string; name: string; color: string; position: number }
 type CompletionRowData = { id: string; habit_id: string; date: string }
 
-function toHabitRowData(value: unknown): HabitRowData | null {
+const toHabitRowData = (value: unknown): HabitRowData | null => {
 	if (typeof value !== 'object' || value === null) return null
 
 	const row = value as Record<string, unknown>
@@ -75,15 +74,10 @@ function toHabitRowData(value: unknown): HabitRowData | null {
 		return null
 	}
 
-	return {
-		id: row.id,
-		name: row.name,
-		color: row.color,
-		position: row.position,
-	}
+	return { id: row.id, name: row.name, color: row.color, position: row.position }
 }
 
-function toCompletionRowData(value: unknown): CompletionRowData | null {
+const toCompletionRowData = (value: unknown): CompletionRowData | null => {
 	if (typeof value !== 'object' || value === null) return null
 
 	const row = value as Record<string, unknown>
@@ -95,38 +89,31 @@ function toCompletionRowData(value: unknown): CompletionRowData | null {
 		return null
 	}
 
-	return {
-		id: row.id,
-		habit_id: row.habit_id,
-		date: row.date,
-	}
-}
-
-const LEGACY_COLOR_MAP: Record<string, string> = { amber: 'marigold' }
-
-function habitColorVar(color: string) {
-	const mapped = LEGACY_COLOR_MAP[color] ?? color
-	const resolved = HABIT_COLORS.includes(mapped as HabitColor) ? mapped : 'coral'
-	return `var(--habit-${resolved})`
+	return { id: row.id, habit_id: row.habit_id, date: row.date }
 }
 
 const AddHabitDialog = ({
 	open,
 	onOpenChange,
 	onAdd,
+	defaultColor,
 }: {
 	open: boolean
 	onOpenChange: (open: boolean) => void
 	onAdd: (name: string, color: HabitColor) => void
+	defaultColor: HabitColor
 }) => {
 	const [name, setName] = useState('')
-	const [color, setColor] = useState<HabitColor>('coral')
+	const [color, setColor] = useState<HabitColor>(defaultColor)
+
+	useEffect(() => {
+		if (open) setColor(defaultColor)
+	}, [open, defaultColor])
 
 	const handleSubmit = () => {
 		if (!name.trim()) return
 		onAdd(name.trim(), color)
 		setName('')
-		setColor('coral')
 	}
 
 	return (
@@ -160,8 +147,10 @@ const AddHabitDialog = ({
 					))}
 				</div>
 				<DialogFooter>
-					<DialogClose render={<Button variant="ghost" size="sm" />}>cancel</DialogClose>
-					<Button size="sm" onClick={handleSubmit}>
+					<DialogClose render={<Button variant="ghost" size="sm" className="rounded-full" />}>
+						cancel
+					</DialogClose>
+					<Button size="sm" className="rounded-full" onClick={handleSubmit}>
 						add
 					</Button>
 				</DialogFooter>
@@ -170,271 +159,462 @@ const AddHabitDialog = ({
 	)
 }
 
-function DashboardToolbar({
-	days,
-	offset,
+const DashboardToolbar = ({
+	rangeLabel,
+	weekOffset,
 	onOlder,
 	onNewer,
 	onReset,
 	onAddHabit,
 	skeleton = false,
 }: {
-	days: string[]
-	offset: number
+	rangeLabel: string
+	weekOffset: number
 	onOlder?: () => void
 	onNewer?: () => void
 	onReset?: () => void
 	onAddHabit?: () => void
 	skeleton?: boolean
-}) {
-	return (
-		<div className="mb-4 flex items-center justify-between gap-3">
-			<div className="flex min-w-0 items-center gap-2">
+}) => (
+	<div className="mb-6 flex items-center justify-between gap-3 sm:mb-8">
+		<div className="flex min-w-0 items-center gap-2 sm:gap-3.5">
+			<button
+				type="button"
+				onClick={onOlder}
+				disabled={skeleton}
+				aria-label="previous weeks"
+				className="flex size-7 items-center justify-center rounded-full text-ink-soft transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none sm:size-8"
+			>
+				<ChevronLeft className="size-5" />
+			</button>
+			<span className="min-w-24 text-center text-base font-medium tracking-[-0.2px] tabular-nums sm:text-[18px]">
+				{rangeLabel}
+			</span>
+			<button
+				type="button"
+				onClick={onNewer}
+				disabled={skeleton || weekOffset === 0}
+				aria-label="next weeks"
+				className="flex size-7 items-center justify-center rounded-full text-ink-soft transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-30 sm:size-8"
+			>
+				<ChevronRight className="size-5" />
+			</button>
+			{weekOffset > 0 && (
 				<button
 					type="button"
-					onClick={onOlder}
-					disabled={skeleton}
-					className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none"
+					onClick={onReset}
+					className="rounded-full px-2 py-0.5 text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 				>
-					<ChevronLeft className="size-4" />
+					today
 				</button>
-				<div className="min-w-30 text-center text-sm text-muted-foreground">
-					{dashboardVisibleRanges.map((range) => (
-						<span key={range.count} className={range.className}>
-							{formatDateRange(days.slice(-range.count))}
-						</span>
-					))}
-				</div>
-				<button
-					type="button"
-					onClick={onNewer}
-					disabled={skeleton || offset === 0}
-					className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-30"
-				>
-					<ChevronRight className="size-4" />
-				</button>
-				{offset > 0 && (
-					<button
-						type="button"
-						onClick={onReset}
-						className="rounded-lg text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-					>
-						today
-					</button>
-				)}
-			</div>
-			<div className="shrink-0">
-				<Button variant="outline" onClick={onAddHabit} disabled={skeleton}>
-					+ add habit
-				</Button>
-			</div>
+			)}
 		</div>
-	)
-}
-
-function DashboardHeader({ days, today }: { days: string[]; today: string }) {
-	return (
-		<div className={cn('grid items-center gap-x-0.5', dashboardGridColsClassName)}>
-			<div />
-			{days.map((date, index) => {
-				const { weekday, day } = formatDay(date)
-				const isToday = date === today
-
-				return (
-					<div
-						key={date}
-						className={cn(
-							'flex flex-col items-center pb-2 text-xs text-muted-foreground',
-							getResponsiveDayVisibilityClass(index),
-							isToday && 'font-medium text-foreground',
-						)}
-					>
-						<span>{weekday}</span>
-						<span
-							className={cn(
-								'flex size-6 items-center justify-center rounded-full text-[11px]',
-								isToday && 'bg-foreground text-background',
-							)}
-						>
-							{day}
-						</span>
-					</div>
-				)
-			})}
-		</div>
-	)
-}
-
-function DeleteHabitIcon() {
-	return (
-		<svg
-			width="14"
-			height="14"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="2"
+		<button
+			type="button"
+			onClick={onAddHabit}
+			disabled={skeleton}
+			className="shrink-0 rounded-full border border-divider-strong bg-transparent px-3.5 py-1.5 text-xs font-medium tracking-[-0.1px] whitespace-nowrap text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 sm:px-[18px] sm:py-2 sm:text-sm"
 		>
-			<title>Delete</title>
-			<path d="M18 6 6 18M6 6l12 12" />
-		</svg>
+			+ <span className="hidden sm:inline">add habit</span>
+			<span className="sm:hidden">add</span>
+		</button>
+	</div>
+)
+
+type DayHeaderProps = {
+	dateStr: string
+	today: string
+	cellSize: number
+	todayDot: number
+}
+
+const DayHeader = ({ dateStr, today, cellSize, todayDot }: DayHeaderProps) => {
+	const meta = getDayMeta(dateStr, today)
+	const labelClass = meta.isWeekend ? 'text-text-faint' : 'text-ink-soft'
+
+	return (
+		<div
+			className={cn('flex flex-col items-center gap-1 pb-3', labelClass)}
+			style={{ width: cellSize }}
+		>
+			<span className="text-[11px] font-medium tracking-[0.2px] opacity-90">{meta.weekday}</span>
+			{meta.isToday ? (
+				<span
+					className="flex items-center justify-center rounded-full bg-foreground text-[11px] font-semibold tabular-nums text-today-dot-text"
+					style={{ width: todayDot, height: todayDot }}
+				>
+					{meta.day}
+				</span>
+			) : (
+				<span
+					className={cn(
+						'text-xs font-medium tabular-nums',
+						meta.isWeekend ? 'opacity-70' : 'opacity-90',
+					)}
+					style={{ height: todayDot, lineHeight: `${todayDot}px` }}
+				>
+					{meta.day}
+				</span>
+			)}
+		</div>
 	)
 }
 
-const HabitRow = ({
-	habit,
-	days,
-	today,
-	completionSet,
-	onToggle,
-	onDelete,
-	index,
-}: {
+type CellProps = {
+	dateStr: string
+	today: string
+	done: boolean
+	colorVar: string
+	cellSize: number
+	onToggle: () => void
+}
+
+const Cell = ({ dateStr, today, done, colorVar, cellSize, onToggle }: CellProps) => {
+	const meta = getDayMeta(dateStr, today)
+	const radius = Math.round(cellSize * 0.13)
+	const futureOpacity = meta.isFuture ? 0.55 : 1
+	const baseStyle: CSSProperties = {
+		width: cellSize,
+		height: cellSize,
+		borderRadius: radius,
+		flex: '0 0 auto',
+		transition: 'transform 120ms ease, opacity 120ms ease, background 120ms ease',
+		touchAction: 'manipulation',
+		WebkitTapHighlightColor: 'transparent',
+	}
+
+	if (done) {
+		return (
+			<button
+				type="button"
+				aria-label={`toggle ${dateStr}`}
+				disabled={meta.isFuture}
+				onClick={onToggle}
+				style={{
+					...baseStyle,
+					background: colorVar,
+					border: 'none',
+					padding: 0,
+					opacity: futureOpacity,
+					cursor: meta.isFuture ? 'default' : 'pointer',
+				}}
+				className="outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+			/>
+		)
+	}
+
+	return (
+		<button
+			type="button"
+			aria-label={`toggle ${dateStr}`}
+			disabled={meta.isFuture}
+			onClick={onToggle}
+			style={{
+				...baseStyle,
+				background: 'transparent',
+				border: `1.5px dashed ${colorVar}`,
+				color: colorVar,
+				padding: 0,
+				opacity: futureOpacity * 0.32,
+				cursor: meta.isFuture ? 'default' : 'pointer',
+			}}
+			className="outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+		/>
+	)
+}
+
+const DeleteHabitIcon = () => (
+	<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+		<title>Delete</title>
+		<path d="M18 6 6 18M6 6l12 12" />
+	</svg>
+)
+
+type MatrixHabitRowProps = {
 	habit: HabitRowData
-	days: string[]
+	index: number
+	view: Extract<View, { mode: 'matrix' }>
+	weeks: string[][]
 	today: string
 	completionSet: Set<string>
+	consistency: number
 	onToggle: (habitId: string, date: string) => void
 	onDelete: (id: string) => void
-	index: number
-}) => {
+}
+
+const MatrixHabitRow = ({
+	habit,
+	index,
+	view,
+	weeks,
+	today,
+	completionSet,
+	consistency,
+	onToggle,
+	onDelete,
+}: MatrixHabitRowProps) => {
 	const { ref, handleRef, isDragSource } = useSortable({
 		id: habit.id,
 		index,
 		group: 'habits',
 	})
+	const colorVar = habitColorVar(habit.color)
 
-	const bgVar = habitColorVar(habit.color)
+	return (
+		<div ref={ref} className={cn('flex items-center', isDragSource && 'opacity-50')}>
+			<div
+				className="group/row sticky left-0 z-10 flex shrink-0 items-center justify-end gap-2.5 bg-background pr-6"
+				style={{ width: view.namesColWidth, height: view.cellSize }}
+			>
+				<div className="absolute inset-y-0 left-1 flex items-center gap-1 opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100">
+					<button
+						type="button"
+						ref={handleRef}
+						className="cursor-grab touch-none rounded-full p-0.5 text-muted-foreground active:cursor-grabbing"
+						tabIndex={-1}
+						aria-label="drag to reorder"
+					>
+						<GripVertical className="size-4" />
+					</button>
+					<button
+						type="button"
+						onClick={() => onDelete(habit.id)}
+						className="rounded-full p-0.5 text-muted-foreground outline-none hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+						title="delete habit"
+						aria-label={`delete ${habit.name}`}
+					>
+						<DeleteHabitIcon />
+					</button>
+				</div>
+				<span className="min-w-0 truncate text-[17px] tracking-[-0.1px]">{habit.name}</span>
+				<ConsistencyBar value={consistency} colorVar={colorVar} height={view.cellSize - 6} />
+			</div>
+			<div className="flex" style={{ gap: view.weekGap }}>
+				{weeks.map((week, wi) => (
+					<div
+						// biome-ignore lint/suspicious/noArrayIndexKey: weeks are stable positional groups
+						key={wi}
+						className="relative flex"
+						style={{ gap: view.cellGap }}
+					>
+						{week.map((dateStr, di) => {
+							const meta = getDayMeta(dateStr, today)
+							if (!meta.isWeekend) return null
+							const left = di * (view.cellSize + view.cellGap)
+							return (
+								<div
+									key={`tint-${dateStr}`}
+									aria-hidden
+									className="pointer-events-none absolute rounded-lg bg-weekend-tint"
+									style={{
+										left: left - 4,
+										top: -4,
+										bottom: -4,
+										width: view.cellSize + 8,
+									}}
+								/>
+							)
+						})}
+						{week.map((dateStr) => (
+							<Cell
+								key={dateStr}
+								dateStr={dateStr}
+								today={today}
+								done={completionSet.has(`${habit.id}:${dateStr}`)}
+								colorVar={colorVar}
+								cellSize={view.cellSize}
+								onToggle={() => onToggle(habit.id, dateStr)}
+							/>
+						))}
+					</div>
+				))}
+			</div>
+		</div>
+	)
+}
+
+const MatrixView = ({
+	habits,
+	weeks,
+	today,
+	view,
+	completionSet,
+	consistencyByHabit,
+	onToggle,
+	onDelete,
+}: {
+	habits: HabitRowData[]
+	weeks: string[][]
+	today: string
+	view: Extract<View, { mode: 'matrix' }>
+	completionSet: Set<string>
+	consistencyByHabit: Map<string, number>
+	onToggle: (habitId: string, date: string) => void
+	onDelete: (id: string) => void
+}) => {
+	const scrollRef = useRef<HTMLDivElement>(null)
+
+	useLayoutEffect(() => {
+		const el = scrollRef.current
+		if (!el || weeks.length === 0 || view.cellSize === 0) return
+		el.scrollLeft = el.scrollWidth - el.clientWidth
+	}, [weeks, view])
+
+	return (
+		<div ref={scrollRef} className="overflow-x-auto">
+			<div className="inline-flex min-w-full flex-col">
+				<div className="flex">
+					<div
+						className="sticky left-0 z-20 shrink-0 bg-background"
+						style={{ width: view.namesColWidth }}
+					/>
+					<div className="flex" style={{ gap: view.weekGap }}>
+						{weeks.map((week, wi) => (
+							<div
+								// biome-ignore lint/suspicious/noArrayIndexKey: weeks are stable positional groups
+								key={wi}
+								className="flex"
+								style={{ gap: view.cellGap }}
+							>
+								{week.map((dateStr) => (
+									<DayHeader
+										key={dateStr}
+										dateStr={dateStr}
+										today={today}
+										cellSize={view.cellSize}
+										todayDot={view.todayDot}
+									/>
+								))}
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="flex flex-col" style={{ gap: view.rowGap }}>
+					{habits.map((habit, index) => (
+						<MatrixHabitRow
+							key={habit.id}
+							habit={habit}
+							index={index}
+							view={view}
+							weeks={weeks}
+							today={today}
+							completionSet={completionSet}
+							consistency={consistencyByHabit.get(habit.id) ?? 0}
+							onToggle={onToggle}
+							onDelete={onDelete}
+						/>
+					))}
+				</div>
+			</div>
+		</div>
+	)
+}
+
+type CardProps = {
+	habit: HabitRowData
+	index: number
+	days: string[]
+	today: string
+	completionSet: Set<string>
+	consistency: number
+	onToggle: (habitId: string, date: string) => void
+	onDelete: (id: string) => void
+}
+
+const MOBILE_CELL = 38
+const MOBILE_CELL_GAP = 5
+const MOBILE_TODAY_DOT = 20
+
+const HabitCard = ({
+	habit,
+	index,
+	days,
+	today,
+	completionSet,
+	consistency,
+	onToggle,
+	onDelete,
+}: CardProps) => {
+	const { ref, handleRef, isDragSource } = useSortable({
+		id: habit.id,
+		index,
+		group: 'habits',
+	})
+	const colorVar = habitColorVar(habit.color)
 
 	return (
 		<div
 			ref={ref}
 			className={cn(
-				'grid items-center gap-x-0.5',
-				dashboardGridColsClassName,
+				'group/card relative border-t border-divider-soft py-4 pr-5 pl-7 first:border-t-0',
 				isDragSource && 'opacity-50',
 			)}
 		>
-			<div className="group/row flex min-w-0 items-center gap-1 pr-3">
-				<button
-					type="button"
-					ref={handleRef}
-					className="shrink-0 cursor-grab touch-none text-muted-foreground opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 active:cursor-grabbing"
-					tabIndex={-1}
-				>
-					<GripVertical className="size-4" />
-				</button>
-				<span className="max-w-25 truncate text-sm md:max-w-40">{habit.name}</span>
-				<button
-					type="button"
-					onClick={() => onDelete(habit.id)}
-					className="shrink-0 rounded-lg text-muted-foreground opacity-0 outline-none transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background group-focus-within/row:opacity-100 group-hover/row:opacity-100"
-					title="Delete habit"
-				>
-					<DeleteHabitIcon />
-				</button>
-			</div>
-
-			{days.map((date, dayIndex) => {
-				const done = completionSet.has(`${habit.id}:${date}`)
-				const isToday = date === today
-
-				return (
-					<div
-						key={date}
-						className={cn(
-							'flex items-center justify-center',
-							getResponsiveDayVisibilityClass(dayIndex),
-						)}
+			<ConsistencyBar
+				value={consistency}
+				colorVar={colorVar}
+				height={0}
+				width={4}
+				style={{
+					position: 'absolute',
+					left: 16,
+					top: 44,
+					bottom: 20,
+					height: 'auto',
+				}}
+			/>
+			<div className="mb-3 flex items-center justify-between gap-2">
+				<span className="min-w-0 truncate text-[17px] font-medium tracking-[-0.2px]">
+					{habit.name}
+				</span>
+				<div className="flex items-center gap-1">
+					<button
+						type="button"
+						ref={handleRef}
+						className="cursor-grab touch-none rounded-full p-0.5 text-muted-foreground opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100 active:cursor-grabbing"
+						tabIndex={-1}
+						aria-label="drag to reorder"
 					>
-						<button
-							type="button"
-							onClick={() => onToggle(habit.id, date)}
-							className={cn(
-								'relative size-10 rounded-sm outline-none transition-colors focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background md:size-11',
-								isToday && 'ring-1 ring-foreground/10',
-								done
-									? 'opacity-85 hover:opacity-100'
-									: isToday
-										? 'border-2 border-current opacity-20 hover:opacity-40'
-										: 'border border-dashed border-current opacity-15 hover:opacity-35',
-							)}
-							style={done ? { backgroundColor: bgVar } : { color: bgVar }}
-						/>
-					</div>
-				)
-			})}
-		</div>
-	)
-}
-
-function HabitRowSkeleton({
-	rowIndex,
-	days,
-	today,
-	habitName,
-}: {
-	rowIndex: number
-	days: string[]
-	today: string
-	habitName?: string
-}) {
-	return (
-		<div className={cn('grid items-center gap-x-0.5', dashboardGridColsClassName)}>
-			<div className="flex min-w-0 items-center gap-1 pr-3">
-				<div className="flex size-4 shrink-0 items-center justify-center text-muted-foreground/40">
-					<GripVertical className="size-4" />
-				</div>
-				{habitName ? (
-					<span className="max-w-25 truncate text-sm md:max-w-40">{habitName}</span>
-				) : (
-					<Skeleton
-						className={cn(
-							'h-3.5 rounded-sm border border-border/40 bg-muted/50 dark:border-border/50 dark:bg-muted/20',
-							SKELETON_NAME_WIDTHS[rowIndex % SKELETON_NAME_WIDTHS.length],
-						)}
-					/>
-				)}
-				<div className="flex size-3.5 shrink-0 items-center justify-center text-muted-foreground/0">
-					<DeleteHabitIcon />
+						<GripVertical className="size-4" />
+					</button>
+					<button
+						type="button"
+						onClick={() => onDelete(habit.id)}
+						className="rounded-full p-1 text-muted-foreground outline-none transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+						aria-label={`delete ${habit.name}`}
+					>
+						<DeleteHabitIcon />
+					</button>
 				</div>
 			</div>
-
-			{days.map((date, index) => (
-				<div
-					key={date}
-					className={cn('flex items-center justify-center', getResponsiveDayVisibilityClass(index))}
-				>
-					<Skeleton
-						className={cn(
-							'size-10 rounded-sm border border-border/40 bg-muted/50 md:size-11 dark:border-border/50 dark:bg-muted/20',
-							date === today &&
-								'border-foreground/15 bg-foreground/5 dark:border-foreground/20 dark:bg-foreground/8',
-						)}
-					/>
-				</div>
-			))}
-		</div>
-	)
-}
-
-function DashboardSkeleton({ offset = 0, habitNames }: { offset?: number; habitNames?: string[] }) {
-	const days = useMemo(() => getDays(DASHBOARD_MAX_DAYS, offset), [offset])
-	const today = getToday()
-	const rows = habitNames?.length ? habitNames : DASHBOARD_SKELETON_ROWS
-
-	return (
-		<div>
-			<DashboardToolbar days={days} offset={offset} skeleton />
-			<DashboardHeader days={days} today={today} />
-			<div className="flex flex-col gap-y-1">
-				{rows.map((rowValue, rowIndex) => (
-					<HabitRowSkeleton
-						key={rowValue}
-						rowIndex={rowIndex}
-						days={days}
+			<div className="relative flex" style={{ gap: MOBILE_CELL_GAP }}>
+				{days.map((dateStr, di) => {
+					const meta = getDayMeta(dateStr, today)
+					if (!meta.isWeekend) return null
+					const left = di * (MOBILE_CELL + MOBILE_CELL_GAP)
+					return (
+						<div
+							key={`tint-${dateStr}`}
+							aria-hidden
+							className="pointer-events-none absolute rounded-md bg-weekend-tint"
+							style={{
+								left: left - 3,
+								top: -3,
+								bottom: -3,
+								width: MOBILE_CELL + 6,
+							}}
+						/>
+					)
+				})}
+				{days.map((dateStr) => (
+					<Cell
+						key={dateStr}
+						dateStr={dateStr}
 						today={today}
-						habitName={habitNames?.[rowIndex]}
+						done={completionSet.has(`${habit.id}:${dateStr}`)}
+						colorVar={colorVar}
+						cellSize={MOBILE_CELL}
+						onToggle={() => onToggle(habit.id, dateStr)}
 					/>
 				))}
 			</div>
@@ -442,9 +622,222 @@ function DashboardSkeleton({ offset = 0, habitNames }: { offset?: number; habitN
 	)
 }
 
-const HabitGrid = () => {
+const MobileDayHeader = ({ days, today }: { days: string[]; today: string }) => (
+	<div className="flex px-7 pt-1 pb-3" style={{ gap: MOBILE_CELL_GAP }}>
+		{/* spacer to balance left-padding visual weight: none needed, cells line up via px-7 */}
+		<div className="flex" style={{ gap: MOBILE_CELL_GAP }}>
+			{days.map((dateStr) => {
+				const meta = getDayMeta(dateStr, today)
+				const labelClass = meta.isWeekend ? 'text-text-faint' : 'text-ink-soft'
+				return (
+					<div
+						key={dateStr}
+						className={cn('flex flex-col items-center gap-1', labelClass)}
+						style={{ width: MOBILE_CELL }}
+					>
+						<span className="text-[10px] font-medium tracking-[0.2px] opacity-90">
+							{meta.weekday}
+						</span>
+						{meta.isToday ? (
+							<span
+								className="flex items-center justify-center rounded-full bg-foreground text-[11px] font-semibold tabular-nums text-today-dot-text"
+								style={{ width: MOBILE_TODAY_DOT, height: MOBILE_TODAY_DOT }}
+							>
+								{meta.day}
+							</span>
+						) : (
+							<span
+								className={cn(
+									'text-xs font-medium tabular-nums',
+									meta.isWeekend ? 'opacity-70' : 'opacity-90',
+								)}
+								style={{ height: MOBILE_TODAY_DOT, lineHeight: `${MOBILE_TODAY_DOT}px` }}
+							>
+								{meta.day}
+							</span>
+						)}
+					</div>
+				)
+			})}
+		</div>
+	</div>
+)
+
+const CardsView = ({
+	habits,
+	days,
+	today,
+	completionSet,
+	consistencyByHabit,
+	onToggle,
+	onDelete,
+}: {
+	habits: HabitRowData[]
+	days: string[]
+	today: string
+	completionSet: Set<string>
+	consistencyByHabit: Map<string, number>
+	onToggle: (habitId: string, date: string) => void
+	onDelete: (id: string) => void
+}) => (
+	<div className="-mx-4 flex flex-col sm:-mx-6">
+		<MobileDayHeader days={days} today={today} />
+		{habits.map((habit, index) => (
+			<HabitCard
+				key={habit.id}
+				habit={habit}
+				index={index}
+				days={days}
+				today={today}
+				completionSet={completionSet}
+				consistency={consistencyByHabit.get(habit.id) ?? 0}
+				onToggle={onToggle}
+				onDelete={onDelete}
+			/>
+		))}
+	</div>
+)
+
+const computeConsistency = (
+	habitId: string,
+	today: string,
+	completionSet: Set<string>,
+	now = getToday(),
+): number => {
+	const days: string[] = []
+	const todayDate = new Date(`${now}T00:00:00Z`)
+	for (let i = CONSISTENCY_WINDOW - 1; i >= 0; i--) {
+		const d = new Date(todayDate)
+		d.setUTCDate(d.getUTCDate() - i)
+		days.push(d.toISOString().slice(0, 10))
+	}
+	const eligible = days.filter((d) => d <= today)
+	if (eligible.length === 0) return 0
+	let hits = 0
+	for (const d of eligible) {
+		if (completionSet.has(`${habitId}:${d}`)) hits++
+	}
+	return hits / eligible.length
+}
+
+const MatrixSkeleton = ({
+	view,
+	rows,
+	habitNames,
+}: {
+	view: Extract<View, { mode: 'matrix' }>
+	rows: readonly string[]
+	habitNames?: string[]
+}) => {
+	const today = getToday()
+	const days = getWeekAlignedRange(view.weeksVisible, 0)
+	const weeks = chunkIntoWeeks(days)
+
+	return (
+		<div className="overflow-x-auto">
+			<div className="inline-flex min-w-full flex-col">
+				<div className="flex">
+					<div
+						className="sticky left-0 z-20 shrink-0 bg-background"
+						style={{ width: view.namesColWidth }}
+					/>
+					<div className="flex" style={{ gap: view.weekGap }}>
+						{weeks.map((week, wi) => (
+							<div
+								// biome-ignore lint/suspicious/noArrayIndexKey: weeks are stable positional groups
+								key={wi}
+								className="flex"
+								style={{ gap: view.cellGap }}
+							>
+								{week.map((dateStr) => (
+									<DayHeader
+										key={dateStr}
+										dateStr={dateStr}
+										today={today}
+										cellSize={view.cellSize}
+										todayDot={view.todayDot}
+									/>
+								))}
+							</div>
+						))}
+					</div>
+				</div>
+				<div className="flex flex-col" style={{ gap: view.rowGap }}>
+					{rows.map((rowKey, rowIndex) => (
+						<div key={rowKey} className="flex items-center">
+							<div
+								className="sticky left-0 z-10 flex shrink-0 items-center justify-end gap-2.5 bg-background pr-6"
+								style={{ width: view.namesColWidth, height: view.cellSize }}
+							>
+								{habitNames?.[rowIndex] ? (
+									<span className="truncate text-[17px] tracking-[-0.1px]">
+										{habitNames[rowIndex]}
+									</span>
+								) : (
+									<Skeleton
+										className={cn(
+											'h-3.5 rounded-sm border border-border/40 bg-muted/50 dark:border-border/50 dark:bg-muted/20',
+											SKELETON_NAME_WIDTHS[rowIndex % SKELETON_NAME_WIDTHS.length],
+										)}
+									/>
+								)}
+								<div
+									className="w-[5px] rounded-[3px] bg-divider-soft"
+									style={{ height: view.cellSize - 6 }}
+								/>
+							</div>
+							<div className="flex" style={{ gap: view.weekGap }}>
+								{weeks.map((week, wi) => (
+									<div
+										// biome-ignore lint/suspicious/noArrayIndexKey: weeks are stable positional groups
+										key={wi}
+										className="flex"
+										style={{ gap: view.cellGap }}
+									>
+										{week.map((dateStr) => (
+											<div
+												key={dateStr}
+												className="rounded-lg border border-dashed border-divider-soft bg-transparent"
+												style={{
+													width: view.cellSize,
+													height: view.cellSize,
+													borderRadius: Math.round(view.cellSize * 0.13),
+												}}
+											/>
+										))}
+									</div>
+								))}
+							</div>
+						</div>
+					))}
+				</div>
+			</div>
+		</div>
+	)
+}
+
+const DashboardSkeleton = ({ habitNames }: { habitNames?: string[] }) => {
+	const view = DEFAULT_VIEW as Extract<View, { mode: 'matrix' }>
+	const today = getToday()
+	const days = getWeekAlignedRange(view.weeksVisible, 0)
+	const rangeLabel = formatWeekRangeLabel(days)
+	const rows = habitNames?.length ? habitNames : DASHBOARD_SKELETON_ROWS
+
+	return (
+		<div>
+			<DashboardToolbar rangeLabel={rangeLabel} weekOffset={0} skeleton />
+			<MatrixSkeleton view={view} rows={rows} habitNames={habitNames} />
+			<div className="sr-only" aria-hidden>
+				{today}
+			</div>
+		</div>
+	)
+}
+
+const HabitTracker = () => {
 	const { userId } = useOutletContext<{ userId: string }>()
 	const { habitCollection, completionCollection } = useCollections()
+	const view = useResponsiveView()
 
 	const { data: habits, isLoading: habitsLoading } = useLiveQuery((q) =>
 		q
@@ -457,9 +850,15 @@ const HabitGrid = () => {
 		q.from({ completions: completionCollection }),
 	)
 
-	const [offset, setOffset] = useState(0)
-	const days = useMemo(() => getDays(DASHBOARD_MAX_DAYS, offset), [offset])
+	const [weekOffset, setWeekOffset] = useState(0)
+	const days = useMemo(
+		() => getWeekAlignedRange(view.weeksVisible, weekOffset),
+		[view.weeksVisible, weekOffset],
+	)
+	const weeks = useMemo(() => chunkIntoWeeks(days), [days])
 	const today = getToday()
+	const rangeLabel = useMemo(() => formatWeekRangeLabel(days), [days])
+
 	const normalizedHabits = useMemo(
 		() =>
 			(habits ?? []).map(toHabitRowData).filter((habit): habit is HabitRowData => habit !== null),
@@ -488,6 +887,14 @@ const HabitGrid = () => {
 		}
 		return map
 	}, [normalizedCompletions])
+
+	const consistencyByHabit = useMemo(() => {
+		const map = new Map<string, number>()
+		for (const h of normalizedHabits) {
+			map.set(h.id, computeConsistency(h.id, today, completionSet))
+		}
+		return map
+	}, [normalizedHabits, completionSet, today])
 
 	const [dialogOpen, setDialogOpen] = useState(false)
 	const loadingHabitNames = useMemo(
@@ -563,44 +970,56 @@ const HabitGrid = () => {
 	)
 
 	const handleOlder = useCallback(() => {
-		setOffset((currentOffset) => currentOffset + getResponsiveDayCount())
+		setWeekOffset((current) => current + 1)
 	}, [])
 
 	const handleNewer = useCallback(() => {
-		setOffset((currentOffset) => Math.max(0, currentOffset - getResponsiveDayCount()))
+		setWeekOffset((current) => Math.max(0, current - 1))
 	}, [])
 
+	const handleAddOpen = useCallback(() => setDialogOpen(true), [])
+	const handleAddOpenChange = useCallback((open: boolean) => setDialogOpen(open), [])
+
+	const nextColor = nextHabitColor(normalizedHabits.length)
+
 	if (habitsLoading || completionsLoading) {
-		return <DashboardSkeleton offset={offset} habitNames={loadingHabitNames} />
+		return <DashboardSkeleton habitNames={loadingHabitNames} />
 	}
 
 	return (
 		<div>
 			<DashboardToolbar
-				days={days}
-				offset={offset}
+				rangeLabel={rangeLabel}
+				weekOffset={weekOffset}
 				onOlder={handleOlder}
 				onNewer={handleNewer}
-				onReset={() => setOffset(0)}
-				onAddHabit={() => setDialogOpen(true)}
+				onReset={() => setWeekOffset(0)}
+				onAddHabit={handleAddOpen}
 			/>
-			<DashboardHeader days={days} today={today} />
 
 			<DragDropProvider onDragEnd={handleDragEnd}>
-				<div className="flex flex-col gap-y-1">
-					{normalizedHabits.map((h, index) => (
-						<HabitRow
-							key={h.id}
-							habit={h}
-							days={days}
-							today={today}
-							completionSet={completionSet}
-							onToggle={handleToggle}
-							onDelete={handleDeleteHabit}
-							index={index}
-						/>
-					))}
-				</div>
+				{view.mode === 'cards' ? (
+					<CardsView
+						habits={normalizedHabits}
+						days={days}
+						today={today}
+						completionSet={completionSet}
+						consistencyByHabit={consistencyByHabit}
+						onToggle={handleToggle}
+						onDelete={handleDeleteHabit}
+					/>
+				) : (
+					<MatrixView
+						habits={normalizedHabits}
+						weeks={weeks}
+						today={today}
+						view={view}
+						completionSet={completionSet}
+						consistencyByHabit={consistencyByHabit}
+						onToggle={handleToggle}
+						onDelete={handleDeleteHabit}
+					/>
+				)}
 			</DragDropProvider>
 
 			{normalizedHabits.length === 0 && (
@@ -609,7 +1028,12 @@ const HabitGrid = () => {
 				</p>
 			)}
 
-			<AddHabitDialog open={dialogOpen} onOpenChange={setDialogOpen} onAdd={handleAddHabit} />
+			<AddHabitDialog
+				open={dialogOpen}
+				onOpenChange={handleAddOpenChange}
+				onAdd={handleAddHabit}
+				defaultColor={nextColor}
+			/>
 		</div>
 	)
 }
@@ -667,7 +1091,7 @@ export default function Dashboard() {
 
 	return (
 		<CollectionContext value={collections} key={userId}>
-			<HabitGrid />
+			<HabitTracker />
 		</CollectionContext>
 	)
 }
