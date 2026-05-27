@@ -697,7 +697,9 @@ const SKELETON_MATRIX_DAYS = 14
 
 const SkeletonDayHeader = ({ cellSize, todayDot }: { cellSize: number; todayDot: number }) => (
 	<div className="flex flex-col items-center gap-1 pb-3" style={{ width: cellSize }}>
-		<div className="h-2.5 w-5 rounded-sm bg-muted/50" />
+		<span className="rounded-sm bg-muted/40 px-1.5 text-[11px] font-medium tracking-[0.2px] text-transparent select-none">
+			x
+		</span>
 		<div className="rounded-full bg-muted/40" style={{ width: todayDot, height: todayDot }} />
 	</div>
 )
@@ -745,7 +747,7 @@ const MatrixSkeleton = ({
 						>
 							<SkeletonNameLabel rowIndex={rowIndex} habitName={habitNames?.[rowIndex]} />
 							<div
-								className="w-[5px] bg-divider-soft"
+								className="w-1.25 bg-divider-soft"
 								style={{ height: SKELETON_MATRIX_CELL - 6, borderRadius: 3 }}
 							/>
 						</div>
@@ -775,7 +777,9 @@ const SkeletonMobileDayHeader = () => {
 		<div className="flex px-7 pt-1 pb-3" style={{ gap: MOBILE_CELL_GAP }}>
 			{dayIndices.map((i) => (
 				<div key={i} className="flex flex-col items-center gap-1" style={{ width: MOBILE_CELL }}>
-					<div className="h-2.5 w-4 rounded-sm bg-muted/50" />
+					<span className="rounded-sm bg-muted/40 px-1 text-[10px] font-medium tracking-[0.2px] text-transparent select-none">
+						x
+					</span>
 					<div
 						className="rounded-full bg-muted/40"
 						style={{ width: MOBILE_TODAY_DOT, height: MOBILE_TODAY_DOT }}
@@ -801,6 +805,12 @@ const CardsSkeleton = ({
 				<div key={rowKey} className="border-t border-divider-soft py-4 pr-5 pl-7 first:border-t-0">
 					<div className="mb-3 flex items-center gap-2">
 						<SkeletonNameLabel rowIndex={rowIndex} habitName={habitNames?.[rowIndex]} />
+						<span
+							aria-hidden
+							className="invisible text-[17px] font-medium tracking-[-0.2px] select-none"
+						>
+							x
+						</span>
 					</div>
 					<div className="relative flex" style={{ gap: MOBILE_CELL_GAP }}>
 						<div
