@@ -27,12 +27,7 @@ import { CollectionContext, useCollections } from '~/lib/collection-context.clie
 import { formatDayRangeLabel, getDayMeta, getDays, getToday } from '~/lib/dates'
 import { HABIT_COLORS, type HabitColor, habitColorVar, nextHabitColor } from '~/lib/habit-colors'
 import { computeReorder } from '~/lib/reorder'
-import {
-	DEFAULT_VIEW,
-	useFittingDays,
-	useResponsiveView,
-	type View,
-} from '~/lib/use-responsive-view'
+import { useFittingDays, useResponsiveView, type View } from '~/lib/use-responsive-view'
 import { cn } from '~/lib/utils'
 import type { Route } from './+types/dashboard'
 
@@ -55,6 +50,11 @@ export function HydrateFallback() {
 const SKELETON_NAME_WIDTHS = ['w-14', 'w-18', 'w-16', 'w-20', 'w-15', 'w-22'] as const
 const DASHBOARD_SKELETON_ROWS = ['row-1', 'row-2', 'row-3', 'row-4', 'row-5', 'row-6'] as const
 const CONSISTENCY_WINDOW = 21
+const MOBILE_CELL = 38
+const MOBILE_CELL_GAP = 5
+const MOBILE_TODAY_DOT = 20
+const MOBILE_DAYS_VISIBLE = 7
+const CARD_RESERVED_WIDTH = 48
 
 type HabitRowData = { id: string; name: string; color: string; position: number }
 type CompletionRowData = { id: string; habit_id: string; date: string }
@@ -126,7 +126,7 @@ const AddHabitDialog = ({
 					onChange={(e) => setName(e.target.value)}
 					onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
 					placeholder="habit name"
-					className="h-9 w-full rounded-lg border border-foreground bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:shadow-brutal-sm"
+					className="h-9 w-full rounded-full border border-foreground bg-background px-4 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:shadow-brutal-sm"
 					autoFocus
 				/>
 				<div className="flex flex-wrap gap-2">
@@ -145,7 +145,15 @@ const AddHabitDialog = ({
 					))}
 				</div>
 				<DialogFooter>
-					<DialogClose render={<Button variant="ghost" size="sm" className="rounded-full" />}>
+					<DialogClose
+						render={
+							<Button
+								variant="ghost"
+								size="sm"
+								className="rounded-full border border-divider-strong"
+							/>
+						}
+					>
 						cancel
 					</DialogClose>
 					<Button
@@ -190,8 +198,8 @@ const DashboardToolbar = ({
 			>
 				<ChevronLeft className="size-5" />
 			</button>
-			<span className="min-w-24 text-center text-base font-medium tracking-[-0.2px] tabular-nums sm:text-[18px]">
-				{rangeLabel}
+			<span className="flex min-w-24 items-center justify-center text-center text-base font-medium tracking-[-0.2px] tabular-nums sm:text-[18px]">
+				{skeleton ? <Skeleton className="h-3.5 w-20 rounded-sm bg-muted/50" /> : rangeLabel}
 			</span>
 			<button
 				type="button"
@@ -212,15 +220,16 @@ const DashboardToolbar = ({
 				</button>
 			)}
 		</div>
-		<button
-			type="button"
+		<Button
+			variant="ghost"
+			size="sm"
 			onClick={onAddHabit}
 			disabled={skeleton}
-			className="shrink-0 rounded-full border border-divider-strong bg-transparent px-3.5 py-1.5 text-xs font-medium tracking-[-0.1px] whitespace-nowrap text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 sm:px-[18px] sm:py-2 sm:text-sm"
+			className="shrink-0 rounded-full border border-divider-strong tracking-[-0.1px]"
 		>
 			+ <span className="hidden sm:inline">add habit</span>
 			<span className="sm:hidden">add</span>
-		</button>
+		</Button>
 	</div>
 )
 
@@ -312,16 +321,18 @@ const Cell = ({ dateStr, today, done, colorVar, cellSize, onToggle }: CellProps)
 			aria-label={`toggle ${dateStr}`}
 			disabled={meta.isFuture}
 			onClick={onToggle}
+			className={cn(
+				'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+				meta.isFuture ? 'opacity-20' : 'opacity-30 hover:opacity-65',
+			)}
 			style={{
 				...baseStyle,
 				background: 'transparent',
 				border: `1.5px dashed ${colorVar}`,
 				color: colorVar,
 				padding: 0,
-				opacity: futureOpacity * 0.32,
 				cursor: meta.isFuture ? 'default' : 'pointer',
 			}}
-			className="outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 		/>
 	)
 }
@@ -491,10 +502,6 @@ type CardProps = {
 	onDelete: (id: string) => void
 }
 
-const MOBILE_CELL = 38
-const MOBILE_CELL_GAP = 5
-const MOBILE_TODAY_DOT = 20
-
 const HabitCard = ({
 	habit,
 	index,
@@ -516,23 +523,10 @@ const HabitCard = ({
 		<div
 			ref={ref}
 			className={cn(
-				'group/card relative border-t border-divider-soft py-4 pr-5 pl-7 first:border-t-0',
+				'group/card border-t border-divider-soft py-4 pr-5 pl-7 first:border-t-0',
 				isDragSource && 'opacity-50',
 			)}
 		>
-			<ConsistencyBar
-				value={consistency}
-				colorVar={colorVar}
-				height={0}
-				width={4}
-				style={{
-					position: 'absolute',
-					left: 16,
-					top: 44,
-					bottom: 20,
-					height: 'auto',
-				}}
-			/>
 			<div className="mb-3 flex items-center justify-between gap-2">
 				<span className="min-w-0 truncate text-[17px] font-medium tracking-[-0.2px]">
 					{habit.name}
@@ -558,6 +552,13 @@ const HabitCard = ({
 				</div>
 			</div>
 			<div className="relative flex" style={{ gap: MOBILE_CELL_GAP }}>
+				<ConsistencyBar
+					value={consistency}
+					colorVar={colorVar}
+					width={4}
+					height={MOBILE_CELL}
+					style={{ position: 'absolute', left: -12, top: 0 }}
+				/>
 				{days.map((dateStr, di) => {
 					const meta = getDayMeta(dateStr, today)
 					if (!meta.isWeekend) return null
@@ -566,7 +567,7 @@ const HabitCard = ({
 						<div
 							key={`tint-${dateStr}`}
 							aria-hidden
-							className="pointer-events-none absolute rounded-md bg-weekend-tint"
+							className="pointer-events-none absolute rounded-lg bg-weekend-tint"
 							style={{
 								left: left - 3,
 								top: -3,
@@ -594,42 +595,39 @@ const HabitCard = ({
 
 const MobileDayHeader = ({ days, today }: { days: string[]; today: string }) => (
 	<div className="flex px-7 pt-1 pb-3" style={{ gap: MOBILE_CELL_GAP }}>
-		{/* spacer to balance left-padding visual weight: none needed, cells line up via px-7 */}
-		<div className="flex" style={{ gap: MOBILE_CELL_GAP }}>
-			{days.map((dateStr) => {
-				const meta = getDayMeta(dateStr, today)
-				const labelClass = meta.isWeekend ? 'text-text-faint' : 'text-ink-soft'
-				return (
-					<div
-						key={dateStr}
-						className={cn('flex flex-col items-center gap-1', labelClass)}
-						style={{ width: MOBILE_CELL }}
-					>
-						<span className="text-[10px] font-medium tracking-[0.2px] opacity-90">
-							{meta.weekday}
+		{days.map((dateStr) => {
+			const meta = getDayMeta(dateStr, today)
+			const labelClass = meta.isWeekend ? 'text-text-faint' : 'text-ink-soft'
+			return (
+				<div
+					key={dateStr}
+					className={cn('flex flex-col items-center gap-1', labelClass)}
+					style={{ width: MOBILE_CELL }}
+				>
+					<span className="text-[10px] font-medium tracking-[0.2px] opacity-90">
+						{meta.weekday}
+					</span>
+					{meta.isToday ? (
+						<span
+							className="flex items-center justify-center rounded-full bg-foreground text-[11px] font-semibold tabular-nums text-today-dot-text"
+							style={{ width: MOBILE_TODAY_DOT, height: MOBILE_TODAY_DOT }}
+						>
+							{meta.day}
 						</span>
-						{meta.isToday ? (
-							<span
-								className="flex items-center justify-center rounded-full bg-foreground text-[11px] font-semibold tabular-nums text-today-dot-text"
-								style={{ width: MOBILE_TODAY_DOT, height: MOBILE_TODAY_DOT }}
-							>
-								{meta.day}
-							</span>
-						) : (
-							<span
-								className={cn(
-									'text-xs font-medium tabular-nums',
-									meta.isWeekend ? 'opacity-70' : 'opacity-90',
-								)}
-								style={{ height: MOBILE_TODAY_DOT, lineHeight: `${MOBILE_TODAY_DOT}px` }}
-							>
-								{meta.day}
-							</span>
-						)}
-					</div>
-				)
-			})}
-		</div>
+					) : (
+						<span
+							className={cn(
+								'text-xs font-medium tabular-nums',
+								meta.isWeekend ? 'opacity-70' : 'opacity-90',
+							)}
+							style={{ height: MOBILE_TODAY_DOT, lineHeight: `${MOBILE_TODAY_DOT}px` }}
+						>
+							{meta.day}
+						</span>
+					)}
+				</div>
+			)
+		})}
 	</div>
 )
 
@@ -690,65 +688,141 @@ const computeConsistency = (
 	return hits / eligible.length
 }
 
+const SKELETON_MATRIX_CELL = 64
+const SKELETON_MATRIX_CELL_GAP = 10
+const SKELETON_MATRIX_ROW_GAP = 12
+const SKELETON_MATRIX_NAMES_WIDTH = 220
+const SKELETON_MATRIX_TODAY_DOT = 22
+const SKELETON_MATRIX_DAYS = 14
+
+const SkeletonDayHeader = ({ cellSize, todayDot }: { cellSize: number; todayDot: number }) => (
+	<div className="flex flex-col items-center gap-1 pb-3" style={{ width: cellSize }}>
+		<div className="h-2.5 w-5 rounded-sm bg-muted/50" />
+		<div className="rounded-full bg-muted/40" style={{ width: todayDot, height: todayDot }} />
+	</div>
+)
+
+const SkeletonNameLabel = ({ rowIndex, habitName }: { rowIndex: number; habitName?: string }) =>
+	habitName ? (
+		<span className="truncate text-[17px] tracking-[-0.1px]">{habitName}</span>
+	) : (
+		<Skeleton
+			className={cn(
+				'h-3.5 rounded-sm border border-border/40 bg-muted/50 dark:border-border/50 dark:bg-muted/20',
+				SKELETON_NAME_WIDTHS[rowIndex % SKELETON_NAME_WIDTHS.length],
+			)}
+		/>
+	)
+
 const MatrixSkeleton = ({
-	view,
-	days,
-	today,
 	rows,
 	habitNames,
 }: {
-	view: Extract<View, { mode: 'matrix' }>
-	days: string[]
-	today: string
 	rows: readonly string[]
 	habitNames?: string[]
-}) => (
-	<div className="flex flex-col">
-		<div className="flex">
-			<div className="shrink-0" style={{ width: view.namesColWidth }} />
-			<div className="flex" style={{ gap: view.cellGap }}>
-				{days.map((dateStr) => (
-					<DayHeader
-						key={dateStr}
-						dateStr={dateStr}
-						today={today}
-						cellSize={view.cellSize}
-						todayDot={view.todayDot}
-					/>
+}) => {
+	const dayIndices = Array.from({ length: SKELETON_MATRIX_DAYS }, (_, i) => i)
+	return (
+		<div className="flex flex-col">
+			<div className="flex">
+				<div className="shrink-0" style={{ width: SKELETON_MATRIX_NAMES_WIDTH }} />
+				<div className="flex" style={{ gap: SKELETON_MATRIX_CELL_GAP }}>
+					{dayIndices.map((i) => (
+						<SkeletonDayHeader
+							key={i}
+							cellSize={SKELETON_MATRIX_CELL}
+							todayDot={SKELETON_MATRIX_TODAY_DOT}
+						/>
+					))}
+				</div>
+			</div>
+			<div className="flex flex-col" style={{ gap: SKELETON_MATRIX_ROW_GAP }}>
+				{rows.map((rowKey, rowIndex) => (
+					<div key={rowKey} className="flex items-center">
+						<div
+							className="flex shrink-0 items-center justify-end gap-2.5 pr-6"
+							style={{ width: SKELETON_MATRIX_NAMES_WIDTH, height: SKELETON_MATRIX_CELL }}
+						>
+							<SkeletonNameLabel rowIndex={rowIndex} habitName={habitNames?.[rowIndex]} />
+							<div
+								className="w-[5px] bg-divider-soft"
+								style={{ height: SKELETON_MATRIX_CELL - 6, borderRadius: 3 }}
+							/>
+						</div>
+						<div className="flex" style={{ gap: SKELETON_MATRIX_CELL_GAP }}>
+							{dayIndices.map((i) => (
+								<div
+									key={i}
+									className="border border-dashed border-divider-soft bg-transparent"
+									style={{
+										width: SKELETON_MATRIX_CELL,
+										height: SKELETON_MATRIX_CELL,
+										borderRadius: Math.round(SKELETON_MATRIX_CELL * 0.13),
+									}}
+								/>
+							))}
+						</div>
+					</div>
 				))}
 			</div>
 		</div>
-		<div className="flex flex-col" style={{ gap: view.rowGap }}>
-			{rows.map((rowKey, rowIndex) => (
-				<div key={rowKey} className="flex items-center">
+	)
+}
+
+const SkeletonMobileDayHeader = () => {
+	const dayIndices = Array.from({ length: MOBILE_DAYS_VISIBLE }, (_, i) => i)
+	return (
+		<div className="flex px-7 pt-1 pb-3" style={{ gap: MOBILE_CELL_GAP }}>
+			{dayIndices.map((i) => (
+				<div key={i} className="flex flex-col items-center gap-1" style={{ width: MOBILE_CELL }}>
+					<div className="h-2.5 w-4 rounded-sm bg-muted/50" />
 					<div
-						className="flex shrink-0 items-center justify-end gap-2.5 pr-6"
-						style={{ width: view.namesColWidth, height: view.cellSize }}
-					>
-						{habitNames?.[rowIndex] ? (
-							<span className="truncate text-[17px] tracking-[-0.1px]">{habitNames[rowIndex]}</span>
-						) : (
-							<Skeleton
-								className={cn(
-									'h-3.5 rounded-sm border border-border/40 bg-muted/50 dark:border-border/50 dark:bg-muted/20',
-									SKELETON_NAME_WIDTHS[rowIndex % SKELETON_NAME_WIDTHS.length],
-								)}
-							/>
-						)}
-						<div
-							className="w-[5px] rounded-[3px] bg-divider-soft"
-							style={{ height: view.cellSize - 6 }}
-						/>
+						className="rounded-full bg-muted/40"
+						style={{ width: MOBILE_TODAY_DOT, height: MOBILE_TODAY_DOT }}
+					/>
+				</div>
+			))}
+		</div>
+	)
+}
+
+const CardsSkeleton = ({
+	rows,
+	habitNames,
+}: {
+	rows: readonly string[]
+	habitNames?: string[]
+}) => {
+	const dayIndices = Array.from({ length: MOBILE_DAYS_VISIBLE }, (_, i) => i)
+	return (
+		<div className="-mx-4 flex flex-col sm:-mx-6">
+			<SkeletonMobileDayHeader />
+			{rows.map((rowKey, rowIndex) => (
+				<div key={rowKey} className="border-t border-divider-soft py-4 pr-5 pl-7 first:border-t-0">
+					<div className="mb-3 flex items-center gap-2">
+						<SkeletonNameLabel rowIndex={rowIndex} habitName={habitNames?.[rowIndex]} />
 					</div>
-					<div className="flex" style={{ gap: view.cellGap }}>
-						{days.map((dateStr) => (
+					<div className="relative flex" style={{ gap: MOBILE_CELL_GAP }}>
+						<div
+							aria-hidden
+							className="bg-divider-soft"
+							style={{
+								position: 'absolute',
+								left: -12,
+								top: 0,
+								width: 4,
+								height: MOBILE_CELL,
+								borderRadius: 3,
+							}}
+						/>
+						{dayIndices.map((i) => (
 							<div
-								key={dateStr}
-								className="rounded-lg border border-dashed border-divider-soft bg-transparent"
+								key={i}
+								className="border border-dashed border-divider-soft bg-transparent"
 								style={{
-									width: view.cellSize,
-									height: view.cellSize,
-									borderRadius: Math.round(view.cellSize * 0.13),
+									width: MOBILE_CELL,
+									height: MOBILE_CELL,
+									borderRadius: Math.round(MOBILE_CELL * 0.13),
 								}}
 							/>
 						))}
@@ -756,26 +830,24 @@ const MatrixSkeleton = ({
 				</div>
 			))}
 		</div>
-	</div>
-)
+	)
+}
 
 const DashboardSkeleton = ({ habitNames }: { habitNames?: string[] }) => {
-	const view = DEFAULT_VIEW as Extract<View, { mode: 'matrix' }>
-	const today = getToday()
-	const days = getDays(view.cellSize >= 64 ? 28 : 21, 0)
-	const rangeLabel = formatDayRangeLabel(days)
 	const rows = habitNames?.length ? habitNames : DASHBOARD_SKELETON_ROWS
 
 	return (
 		<div>
-			<DashboardToolbar rangeLabel={rangeLabel} weekOffset={0} skeleton />
-			<MatrixSkeleton view={view} days={days} today={today} rows={rows} habitNames={habitNames} />
+			<DashboardToolbar rangeLabel="" weekOffset={0} skeleton />
+			<div className="hidden sm:block">
+				<MatrixSkeleton rows={rows} habitNames={habitNames} />
+			</div>
+			<div className="sm:hidden">
+				<CardsSkeleton rows={rows} habitNames={habitNames} />
+			</div>
 		</div>
 	)
 }
-
-const MOBILE_DAYS_VISIBLE = 7
-const CARD_RESERVED_WIDTH = 48 // pl-7 (28) + pr-5 (20) of HabitCard
 
 const HabitTracker = () => {
 	const { userId } = useOutletContext<{ userId: string }>()

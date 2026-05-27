@@ -62,6 +62,23 @@ const subscribe = (onChange: () => void) => {
 export const useResponsiveView = (): View =>
 	useSyncExternalStore(subscribe, resolveView, () => DEFAULT_VIEW)
 
+export const estimateFittingDays = (
+	cellSize: number,
+	cellGap: number,
+	reservedWidth: number,
+	min = 1,
+	max = 70,
+	ssrFallback = 14,
+): number => {
+	if (typeof window === 'undefined') return ssrFallback
+	const pagePad = window.innerWidth >= 640 ? 48 : 32
+	const available = window.innerWidth - pagePad - reservedWidth
+	const slot = cellSize + cellGap
+	if (slot <= 0) return min
+	const fits = Math.floor((available + cellGap) / slot)
+	return Math.max(min, Math.min(max, fits))
+}
+
 export const useFittingDays = ({
 	cellSize,
 	cellGap,
@@ -76,7 +93,9 @@ export const useFittingDays = ({
 	max?: number
 }): [(node: HTMLElement | null) => void, number] => {
 	const [el, setEl] = useState<HTMLElement | null>(null)
-	const [count, setCount] = useState<number>(min)
+	const [count, setCount] = useState<number>(() =>
+		estimateFittingDays(cellSize, cellGap, reservedWidth, min, max),
+	)
 
 	const ref = useCallback((node: HTMLElement | null) => setEl(node), [])
 
