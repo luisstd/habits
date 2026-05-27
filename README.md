@@ -6,19 +6,20 @@ a local-first habit tracker. data lives in the browser via opfs + wa-sqlite, syn
 
 | layer      | choice                                        |
 | ---------- | --------------------------------------------- |
-| runtime    | node 25 + pnpm                                |
+| runtime    | node 24 + pnpm                                |
 | framework  | react router v7 (ssr)                         |
 | ui         | base ui + tailwind css v4                     |
 | data/sync  | tanstack db + electric sql + opfs (wa-sqlite) |
-| server db  | postgres 16                                   |
+| server db  | postgres 18                                   |
 | orm        | drizzle orm                                   |
 | auth       | better-auth + passkey                         |
 | validation | zod                                           |
+| pwa        | vite-plugin-pwa + workbox                     |
 | tooling    | biome + husky + vitest                        |
 
 ## prerequisites
 
-- [node 25](https://nodejs.org)
+- [node 24](https://nodejs.org)
 - [pnpm](https://pnpm.io)
 - [docker](https://docker.com)
 
@@ -78,4 +79,4 @@ flowchart TB
 
 ## deployment
 
-configured for railway via `railway.toml` and `Dockerfile`.
+configured for railway via `railway.json` and `Dockerfile`.
