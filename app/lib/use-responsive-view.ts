@@ -1,53 +1,43 @@
-import { useSyncExternalStore } from 'react'
+import { useCallback, useLayoutEffect, useState, useSyncExternalStore } from 'react'
 
 export type MatrixView = {
 	mode: 'matrix'
-	weeksVisible: number
 	cellSize: number
 	cellGap: number
 	rowGap: number
-	weekGap: number
 	namesColWidth: number
 	todayDot: number
 }
 
 export type CardsView = {
 	mode: 'cards'
-	weeksVisible: 1
 	cellSize: 38
+	cellGap: 5
+	todayDot: 20
 }
 
 export type View = MatrixView | CardsView
 
-const matrix = (
-	weeksVisible: number,
-	cellSize: number,
-	weekGap: number,
-	namesColWidth: number,
-): MatrixView => ({
+const matrix = (cellSize: number, namesColWidth: number): MatrixView => ({
 	mode: 'matrix',
-	weeksVisible,
 	cellSize,
 	cellGap: Math.round(cellSize * 0.16),
 	rowGap: Math.round(cellSize * 0.18),
-	weekGap,
 	namesColWidth,
 	todayDot: Math.max(18, Math.round(cellSize * 0.34)),
 })
 
-const cards = (): CardsView => ({ mode: 'cards', weeksVisible: 1, cellSize: 38 })
+const cards = (): CardsView => ({ mode: 'cards', cellSize: 38, cellGap: 5, todayDot: 20 })
 
 type Tuple = { query: string; view: View }
 
 export const VIEW_BREAKPOINTS: readonly Tuple[] = [
-	{ query: '(min-width: 1536px)', view: matrix(4, 64, 28, 220) },
-	{ query: '(min-width: 1280px)', view: matrix(3, 64, 28, 220) },
-	{ query: '(min-width: 1024px)', view: matrix(3, 56, 24, 200) },
-	{ query: '(min-width: 768px)', view: matrix(2, 48, 20, 180) },
-	{ query: '(min-width: 640px)', view: matrix(1, 48, 20, 180) },
+	{ query: '(min-width: 1280px)', view: matrix(64, 220) },
+	{ query: '(min-width: 1024px)', view: matrix(56, 200) },
+	{ query: '(min-width: 640px)', view: matrix(48, 180) },
 ]
 
-export const DEFAULT_VIEW: View = matrix(3, 64, 28, 220)
+export const DEFAULT_VIEW: View = matrix(64, 220)
 export const MOBILE_VIEW: View = cards()
 
 const resolveView = (): View => {
@@ -71,3 +61,42 @@ const subscribe = (onChange: () => void) => {
 
 export const useResponsiveView = (): View =>
 	useSyncExternalStore(subscribe, resolveView, () => DEFAULT_VIEW)
+
+export const useFittingDays = ({
+	cellSize,
+	cellGap,
+	reservedWidth,
+	min = 1,
+	max = 70,
+}: {
+	cellSize: number
+	cellGap: number
+	reservedWidth: number
+	min?: number
+	max?: number
+}): [(node: HTMLElement | null) => void, number] => {
+	const [el, setEl] = useState<HTMLElement | null>(null)
+	const [count, setCount] = useState<number>(min)
+
+	const ref = useCallback((node: HTMLElement | null) => setEl(node), [])
+
+	useLayoutEffect(() => {
+		if (!el || typeof ResizeObserver === 'undefined') return
+
+		const measure = () => {
+			const available = el.clientWidth - reservedWidth
+			const slot = cellSize + cellGap
+			if (slot <= 0) return
+			// largest n with n*cellSize + (n-1)*cellGap <= available
+			const fits = Math.floor((available + cellGap) / slot)
+			setCount(Math.max(min, Math.min(max, fits)))
+		}
+
+		measure()
+		const observer = new ResizeObserver(measure)
+		observer.observe(el)
+		return () => observer.disconnect()
+	}, [el, cellSize, cellGap, reservedWidth, min, max])
+
+	return [ref, count]
+}

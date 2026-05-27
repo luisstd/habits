@@ -45,39 +45,7 @@ const MONTH_ABBR = [
 	'dec',
 ] as const
 
-export function getWeekAlignedRange(
-	weeksVisible: number,
-	weekOffset: number,
-	now?: Temporal.PlainDate,
-): string[] {
-	if (weeksVisible <= 0) return []
-	const today = now ?? Temporal.Now.plainDateISO()
-	const thisWeekSunday = today.add({ days: 7 - today.dayOfWeek })
-	const endSunday = thisWeekSunday.subtract({ weeks: Math.max(0, weekOffset) })
-	const totalDays = weeksVisible * 7
-	const days: string[] = []
-	for (let i = totalDays - 1; i >= 0; i--) {
-		days.push(endSunday.subtract({ days: i }).toString())
-	}
-	return days
-}
-
-export function chunkIntoWeeks(days: string[]): string[][] {
-	if (days.length === 0) return []
-	const weeks: string[][] = []
-	let current: string[] = []
-	for (const day of days) {
-		current.push(day)
-		if (Temporal.PlainDate.from(day).dayOfWeek === 7) {
-			weeks.push(current)
-			current = []
-		}
-	}
-	if (current.length > 0) weeks.push(current)
-	return weeks
-}
-
-export function formatWeekRangeLabel(days: string[]): string {
+export function formatDayRangeLabel(days: string[]): string {
 	if (days.length === 0) return ''
 	const first = Temporal.PlainDate.from(days[0])
 	const last = Temporal.PlainDate.from(days[days.length - 1])

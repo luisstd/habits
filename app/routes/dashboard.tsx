@@ -7,7 +7,6 @@ import {
 	type CSSProperties,
 	useCallback,
 	useEffect,
-	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -25,16 +24,15 @@ import {
 } from '~/components/ui/dialog'
 import { Skeleton } from '~/components/ui/skeleton'
 import { CollectionContext, useCollections } from '~/lib/collection-context.client'
-import {
-	chunkIntoWeeks,
-	formatWeekRangeLabel,
-	getDayMeta,
-	getToday,
-	getWeekAlignedRange,
-} from '~/lib/dates'
+import { formatDayRangeLabel, getDayMeta, getDays, getToday } from '~/lib/dates'
 import { HABIT_COLORS, type HabitColor, habitColorVar, nextHabitColor } from '~/lib/habit-colors'
 import { computeReorder } from '~/lib/reorder'
-import { DEFAULT_VIEW, useResponsiveView, type View } from '~/lib/use-responsive-view'
+import {
+	DEFAULT_VIEW,
+	useFittingDays,
+	useResponsiveView,
+	type View,
+} from '~/lib/use-responsive-view'
 import { cn } from '~/lib/utils'
 import type { Route } from './+types/dashboard'
 
@@ -150,7 +148,12 @@ const AddHabitDialog = ({
 					<DialogClose render={<Button variant="ghost" size="sm" className="rounded-full" />}>
 						cancel
 					</DialogClose>
-					<Button size="sm" className="rounded-full" onClick={handleSubmit}>
+					<Button
+						variant="ghost"
+						size="sm"
+						className="rounded-full border border-divider-strong"
+						onClick={handleSubmit}
+					>
 						add
 					</Button>
 				</DialogFooter>
@@ -334,7 +337,7 @@ type MatrixHabitRowProps = {
 	habit: HabitRowData
 	index: number
 	view: Extract<View, { mode: 'matrix' }>
-	weeks: string[][]
+	days: string[]
 	today: string
 	completionSet: Set<string>
 	consistency: number
@@ -346,7 +349,7 @@ const MatrixHabitRow = ({
 	habit,
 	index,
 	view,
-	weeks,
+	days,
 	today,
 	completionSet,
 	consistency,
@@ -389,44 +392,35 @@ const MatrixHabitRow = ({
 				<span className="min-w-0 truncate text-[17px] tracking-[-0.1px]">{habit.name}</span>
 				<ConsistencyBar value={consistency} colorVar={colorVar} height={view.cellSize - 6} />
 			</div>
-			<div className="flex" style={{ gap: view.weekGap }}>
-				{weeks.map((week, wi) => (
-					<div
-						// biome-ignore lint/suspicious/noArrayIndexKey: weeks are stable positional groups
-						key={wi}
-						className="relative flex"
-						style={{ gap: view.cellGap }}
-					>
-						{week.map((dateStr, di) => {
-							const meta = getDayMeta(dateStr, today)
-							if (!meta.isWeekend) return null
-							const left = di * (view.cellSize + view.cellGap)
-							return (
-								<div
-									key={`tint-${dateStr}`}
-									aria-hidden
-									className="pointer-events-none absolute rounded-lg bg-weekend-tint"
-									style={{
-										left: left - 4,
-										top: -4,
-										bottom: -4,
-										width: view.cellSize + 8,
-									}}
-								/>
-							)
-						})}
-						{week.map((dateStr) => (
-							<Cell
-								key={dateStr}
-								dateStr={dateStr}
-								today={today}
-								done={completionSet.has(`${habit.id}:${dateStr}`)}
-								colorVar={colorVar}
-								cellSize={view.cellSize}
-								onToggle={() => onToggle(habit.id, dateStr)}
-							/>
-						))}
-					</div>
+			<div className="relative flex" style={{ gap: view.cellGap }}>
+				{days.map((dateStr, di) => {
+					const meta = getDayMeta(dateStr, today)
+					if (!meta.isWeekend) return null
+					const left = di * (view.cellSize + view.cellGap)
+					return (
+						<div
+							key={`tint-${dateStr}`}
+							aria-hidden
+							className="pointer-events-none absolute rounded-lg bg-weekend-tint"
+							style={{
+								left: left - 4,
+								top: -4,
+								bottom: -4,
+								width: view.cellSize + 8,
+							}}
+						/>
+					)
+				})}
+				{days.map((dateStr) => (
+					<Cell
+						key={dateStr}
+						dateStr={dateStr}
+						today={today}
+						done={completionSet.has(`${habit.id}:${dateStr}`)}
+						colorVar={colorVar}
+						cellSize={view.cellSize}
+						onToggle={() => onToggle(habit.id, dateStr)}
+					/>
 				))}
 			</div>
 		</div>
@@ -435,7 +429,7 @@ const MatrixHabitRow = ({
 
 const MatrixView = ({
 	habits,
-	weeks,
+	days,
 	today,
 	view,
 	completionSet,
@@ -444,71 +438,47 @@ const MatrixView = ({
 	onDelete,
 }: {
 	habits: HabitRowData[]
-	weeks: string[][]
+	days: string[]
 	today: string
 	view: Extract<View, { mode: 'matrix' }>
 	completionSet: Set<string>
 	consistencyByHabit: Map<string, number>
 	onToggle: (habitId: string, date: string) => void
 	onDelete: (id: string) => void
-}) => {
-	const scrollRef = useRef<HTMLDivElement>(null)
-
-	useLayoutEffect(() => {
-		const el = scrollRef.current
-		if (!el || weeks.length === 0 || view.cellSize === 0) return
-		el.scrollLeft = el.scrollWidth - el.clientWidth
-	}, [weeks, view])
-
-	return (
-		<div ref={scrollRef} className="overflow-x-auto">
-			<div className="inline-flex min-w-full flex-col">
-				<div className="flex">
-					<div
-						className="sticky left-0 z-20 shrink-0 bg-background"
-						style={{ width: view.namesColWidth }}
+}) => (
+	<div className="flex flex-col">
+		<div className="flex">
+			<div className="shrink-0" style={{ width: view.namesColWidth }} />
+			<div className="flex" style={{ gap: view.cellGap }}>
+				{days.map((dateStr) => (
+					<DayHeader
+						key={dateStr}
+						dateStr={dateStr}
+						today={today}
+						cellSize={view.cellSize}
+						todayDot={view.todayDot}
 					/>
-					<div className="flex" style={{ gap: view.weekGap }}>
-						{weeks.map((week, wi) => (
-							<div
-								// biome-ignore lint/suspicious/noArrayIndexKey: weeks are stable positional groups
-								key={wi}
-								className="flex"
-								style={{ gap: view.cellGap }}
-							>
-								{week.map((dateStr) => (
-									<DayHeader
-										key={dateStr}
-										dateStr={dateStr}
-										today={today}
-										cellSize={view.cellSize}
-										todayDot={view.todayDot}
-									/>
-								))}
-							</div>
-						))}
-					</div>
-				</div>
-				<div className="flex flex-col" style={{ gap: view.rowGap }}>
-					{habits.map((habit, index) => (
-						<MatrixHabitRow
-							key={habit.id}
-							habit={habit}
-							index={index}
-							view={view}
-							weeks={weeks}
-							today={today}
-							completionSet={completionSet}
-							consistency={consistencyByHabit.get(habit.id) ?? 0}
-							onToggle={onToggle}
-							onDelete={onDelete}
-						/>
-					))}
-				</div>
+				))}
 			</div>
 		</div>
-	)
-}
+		<div className="flex flex-col" style={{ gap: view.rowGap }}>
+			{habits.map((habit, index) => (
+				<MatrixHabitRow
+					key={habit.id}
+					habit={habit}
+					index={index}
+					view={view}
+					days={days}
+					today={today}
+					completionSet={completionSet}
+					consistency={consistencyByHabit.get(habit.id) ?? 0}
+					onToggle={onToggle}
+					onDelete={onDelete}
+				/>
+			))}
+		</div>
+	</div>
+)
 
 type CardProps = {
 	habit: HabitRowData
@@ -580,7 +550,7 @@ const HabitCard = ({
 					<button
 						type="button"
 						onClick={() => onDelete(habit.id)}
-						className="rounded-full p-1 text-muted-foreground outline-none transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+						className="rounded-full p-1 text-muted-foreground opacity-0 outline-none transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background group-focus-within/card:opacity-100 group-hover/card:opacity-100"
 						aria-label={`delete ${habit.name}`}
 					>
 						<DeleteHabitIcon />
@@ -722,117 +692,90 @@ const computeConsistency = (
 
 const MatrixSkeleton = ({
 	view,
+	days,
+	today,
 	rows,
 	habitNames,
 }: {
 	view: Extract<View, { mode: 'matrix' }>
+	days: string[]
+	today: string
 	rows: readonly string[]
 	habitNames?: string[]
-}) => {
-	const today = getToday()
-	const days = getWeekAlignedRange(view.weeksVisible, 0)
-	const weeks = chunkIntoWeeks(days)
-
-	return (
-		<div className="overflow-x-auto">
-			<div className="inline-flex min-w-full flex-col">
-				<div className="flex">
-					<div
-						className="sticky left-0 z-20 shrink-0 bg-background"
-						style={{ width: view.namesColWidth }}
+}) => (
+	<div className="flex flex-col">
+		<div className="flex">
+			<div className="shrink-0" style={{ width: view.namesColWidth }} />
+			<div className="flex" style={{ gap: view.cellGap }}>
+				{days.map((dateStr) => (
+					<DayHeader
+						key={dateStr}
+						dateStr={dateStr}
+						today={today}
+						cellSize={view.cellSize}
+						todayDot={view.todayDot}
 					/>
-					<div className="flex" style={{ gap: view.weekGap }}>
-						{weeks.map((week, wi) => (
+				))}
+			</div>
+		</div>
+		<div className="flex flex-col" style={{ gap: view.rowGap }}>
+			{rows.map((rowKey, rowIndex) => (
+				<div key={rowKey} className="flex items-center">
+					<div
+						className="flex shrink-0 items-center justify-end gap-2.5 pr-6"
+						style={{ width: view.namesColWidth, height: view.cellSize }}
+					>
+						{habitNames?.[rowIndex] ? (
+							<span className="truncate text-[17px] tracking-[-0.1px]">{habitNames[rowIndex]}</span>
+						) : (
+							<Skeleton
+								className={cn(
+									'h-3.5 rounded-sm border border-border/40 bg-muted/50 dark:border-border/50 dark:bg-muted/20',
+									SKELETON_NAME_WIDTHS[rowIndex % SKELETON_NAME_WIDTHS.length],
+								)}
+							/>
+						)}
+						<div
+							className="w-[5px] rounded-[3px] bg-divider-soft"
+							style={{ height: view.cellSize - 6 }}
+						/>
+					</div>
+					<div className="flex" style={{ gap: view.cellGap }}>
+						{days.map((dateStr) => (
 							<div
-								// biome-ignore lint/suspicious/noArrayIndexKey: weeks are stable positional groups
-								key={wi}
-								className="flex"
-								style={{ gap: view.cellGap }}
-							>
-								{week.map((dateStr) => (
-									<DayHeader
-										key={dateStr}
-										dateStr={dateStr}
-										today={today}
-										cellSize={view.cellSize}
-										todayDot={view.todayDot}
-									/>
-								))}
-							</div>
+								key={dateStr}
+								className="rounded-lg border border-dashed border-divider-soft bg-transparent"
+								style={{
+									width: view.cellSize,
+									height: view.cellSize,
+									borderRadius: Math.round(view.cellSize * 0.13),
+								}}
+							/>
 						))}
 					</div>
 				</div>
-				<div className="flex flex-col" style={{ gap: view.rowGap }}>
-					{rows.map((rowKey, rowIndex) => (
-						<div key={rowKey} className="flex items-center">
-							<div
-								className="sticky left-0 z-10 flex shrink-0 items-center justify-end gap-2.5 bg-background pr-6"
-								style={{ width: view.namesColWidth, height: view.cellSize }}
-							>
-								{habitNames?.[rowIndex] ? (
-									<span className="truncate text-[17px] tracking-[-0.1px]">
-										{habitNames[rowIndex]}
-									</span>
-								) : (
-									<Skeleton
-										className={cn(
-											'h-3.5 rounded-sm border border-border/40 bg-muted/50 dark:border-border/50 dark:bg-muted/20',
-											SKELETON_NAME_WIDTHS[rowIndex % SKELETON_NAME_WIDTHS.length],
-										)}
-									/>
-								)}
-								<div
-									className="w-[5px] rounded-[3px] bg-divider-soft"
-									style={{ height: view.cellSize - 6 }}
-								/>
-							</div>
-							<div className="flex" style={{ gap: view.weekGap }}>
-								{weeks.map((week, wi) => (
-									<div
-										// biome-ignore lint/suspicious/noArrayIndexKey: weeks are stable positional groups
-										key={wi}
-										className="flex"
-										style={{ gap: view.cellGap }}
-									>
-										{week.map((dateStr) => (
-											<div
-												key={dateStr}
-												className="rounded-lg border border-dashed border-divider-soft bg-transparent"
-												style={{
-													width: view.cellSize,
-													height: view.cellSize,
-													borderRadius: Math.round(view.cellSize * 0.13),
-												}}
-											/>
-										))}
-									</div>
-								))}
-							</div>
-						</div>
-					))}
-				</div>
-			</div>
+			))}
 		</div>
-	)
-}
+	</div>
+)
 
 const DashboardSkeleton = ({ habitNames }: { habitNames?: string[] }) => {
 	const view = DEFAULT_VIEW as Extract<View, { mode: 'matrix' }>
 	const today = getToday()
-	const days = getWeekAlignedRange(view.weeksVisible, 0)
-	const rangeLabel = formatWeekRangeLabel(days)
+	const days = getDays(view.cellSize >= 64 ? 28 : 21, 0)
+	const rangeLabel = formatDayRangeLabel(days)
 	const rows = habitNames?.length ? habitNames : DASHBOARD_SKELETON_ROWS
 
 	return (
 		<div>
 			<DashboardToolbar rangeLabel={rangeLabel} weekOffset={0} skeleton />
-			<MatrixSkeleton view={view} rows={rows} habitNames={habitNames} />
-			<div className="sr-only" aria-hidden>
-				{today}
-			</div>
+			<MatrixSkeleton view={view} days={days} today={today} rows={rows} habitNames={habitNames} />
 		</div>
 	)
 }
+
+const MOBILE_DAYS_VISIBLE = 7
+const CARD_RESERVED_WIDTH = 48 // pl-7 (28) + pr-5 (20) of HabitCard
 
 const HabitTracker = () => {
 	const { userId } = useOutletContext<{ userId: string }>()
@@ -851,13 +794,16 @@ const HabitTracker = () => {
 	)
 
 	const [weekOffset, setWeekOffset] = useState(0)
-	const days = useMemo(
-		() => getWeekAlignedRange(view.weeksVisible, weekOffset),
-		[view.weeksVisible, weekOffset],
-	)
-	const weeks = useMemo(() => chunkIntoWeeks(days), [days])
+	const reservedWidth = view.mode === 'matrix' ? view.namesColWidth : CARD_RESERVED_WIDTH
+	const [measureRef, fittingDays] = useFittingDays({
+		cellSize: view.cellSize,
+		cellGap: view.cellGap,
+		reservedWidth,
+	})
+	const daysVisible = view.mode === 'matrix' ? fittingDays : MOBILE_DAYS_VISIBLE
+	const days = useMemo(() => getDays(daysVisible, weekOffset * 7), [daysVisible, weekOffset])
 	const today = getToday()
-	const rangeLabel = useMemo(() => formatWeekRangeLabel(days), [days])
+	const rangeLabel = useMemo(() => formatDayRangeLabel(days), [days])
 
 	const normalizedHabits = useMemo(
 		() =>
@@ -987,7 +933,7 @@ const HabitTracker = () => {
 	}
 
 	return (
-		<div>
+		<div ref={measureRef}>
 			<DashboardToolbar
 				rangeLabel={rangeLabel}
 				weekOffset={weekOffset}
@@ -1011,7 +957,7 @@ const HabitTracker = () => {
 				) : (
 					<MatrixView
 						habits={normalizedHabits}
-						weeks={weeks}
+						days={days}
 						today={today}
 						view={view}
 						completionSet={completionSet}
