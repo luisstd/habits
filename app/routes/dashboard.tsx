@@ -961,7 +961,7 @@ const HabitTracker = () => {
 				completionCollection.delete(existingId)
 			} else {
 				completionCollection.insert({
-					id: crypto.randomUUID(),
+					id: `${habitId}:${date}`,
 					habit_id: habitId,
 					user_id: userId,
 					date,

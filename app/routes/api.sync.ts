@@ -82,7 +82,12 @@ export const action = async ({ request }: Route.ActionArgs) => {
 							userId,
 							date: data.date,
 						})
-						.onConflictDoNothing()
+						// Touch the row (not DO NOTHING) so the write emits a txid; the
+						// client's awaitTxId rolls back the optimistic update without one.
+						.onConflictDoUpdate({
+							target: [habitCompletion.habitId, habitCompletion.date],
+							set: { date: data.date },
+						})
 					break
 				}
 

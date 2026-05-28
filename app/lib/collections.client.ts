@@ -117,19 +117,14 @@ export const createHabitCollections = async (baseUrl: string) => {
 	const db = await openBrowserWASQLiteOPFSDatabase({ databaseName: 'habits.sqlite' })
 	const coordinator = new BrowserCollectionCoordinator({ dbName: 'habits' })
 
-	const habitPersistence = createBrowserWASQLitePersistence({
-		database: db,
-		coordinator,
-	})
-
-	const completionPersistence = createBrowserWASQLitePersistence({
+	const persistence = createBrowserWASQLitePersistence({
 		database: db,
 		coordinator,
 	})
 
 	const habitCollectionOptions = requireSchema(
 		persistedCollectionOptions({
-			persistence: habitPersistence,
+			persistence,
 			schemaVersion: 1,
 			...electricCollectionOptions({
 				id: 'habits',
@@ -169,7 +164,7 @@ export const createHabitCollections = async (baseUrl: string) => {
 
 	const completionCollectionOptions = requireSchema(
 		persistedCollectionOptions({
-			persistence: completionPersistence,
+			persistence,
 			schemaVersion: 1,
 			...electricCollectionOptions({
 				id: 'completions',
