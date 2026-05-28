@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const createHabitSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	name: z.string().min(1),
 	color: z.string().min(1),
 	archived: z.boolean().optional().default(false),
@@ -9,7 +9,7 @@ export const createHabitSchema = z.object({
 })
 
 export const updateHabitSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	name: z.string().min(1).optional(),
 	color: z.string().min(1).optional(),
 	position: z.number().int().min(0).optional(),
@@ -17,12 +17,12 @@ export const updateHabitSchema = z.object({
 })
 
 export const deleteHabitSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 })
 
 export const upsertCompletionSchema = z.object({
 	id: z.string().min(1),
-	habit_id: z.string().uuid(),
+	habit_id: z.uuid(),
 	date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 })
 
