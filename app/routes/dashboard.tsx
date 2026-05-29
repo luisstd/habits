@@ -13,6 +13,7 @@ import {
 } from 'react'
 import { useOutletContext } from 'react-router'
 import { ConsistencyBar } from '~/components/consistency-bar'
+import { ThemeToggle } from '~/components/theme-toggle'
 import { Button } from '~/components/ui/button'
 import {
 	Dialog,
@@ -187,7 +188,7 @@ const DashboardToolbar = ({
 	onAddHabit?: () => void
 	skeleton?: boolean
 }) => (
-	<div className="mb-6 flex items-center justify-between gap-3 sm:mb-8">
+	<div className="-mx-4 mb-6 flex items-center justify-between gap-3 border-b border-foreground px-4 py-4 sm:-mx-6 sm:mb-8 sm:px-6">
 		<div className="flex min-w-0 items-center gap-2 sm:gap-3.5">
 			<button
 				type="button"
@@ -220,16 +221,19 @@ const DashboardToolbar = ({
 				</button>
 			)}
 		</div>
-		<Button
-			variant="ghost"
-			size="sm"
-			onClick={onAddHabit}
-			disabled={skeleton}
-			className="shrink-0 rounded-full border border-divider-strong tracking-[-0.1px]"
-		>
-			+ <span className="hidden sm:inline">add habit</span>
-			<span className="sm:hidden">add</span>
-		</Button>
+		<div className="flex shrink-0 items-center gap-2 sm:gap-3">
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={onAddHabit}
+				disabled={skeleton}
+				className="shrink-0 rounded-full border border-divider-strong tracking-[-0.1px]"
+			>
+				+ <span className="hidden sm:inline">add habit</span>
+				<span className="sm:hidden">add</span>
+			</Button>
+			<ThemeToggle />
+		</div>
 	</div>
 )
 

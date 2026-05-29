@@ -1,6 +1,5 @@
 import { Outlet, redirect, useLoaderData } from 'react-router'
 import { getAuthState } from '~/.server/auth'
-import { ThemeToggle } from '~/components/theme-toggle'
 import { useForegroundAuthCheck } from '~/lib/use-foreground-auth-check'
 import type { Route } from './+types/layout'
 
@@ -16,11 +15,7 @@ export default function AppLayout() {
 
 	return (
 		<div className="min-h-screen">
-			<header className="flex items-center justify-between border-b border-foreground px-4 sm:px-6 py-4">
-				<h1 className="text-lg font-semibold tracking-tight">habits</h1>
-				<ThemeToggle />
-			</header>
-			<main className="px-4 pt-3 pb-4 sm:p-6">
+			<main className="px-4 pb-4 sm:px-6 sm:pb-6">
 				<Outlet context={{ userId }} />
 			</main>
 		</div>
