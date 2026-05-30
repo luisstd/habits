@@ -2,6 +2,8 @@
 
 a local-first habit tracker. data lives in the browser via opfs + wa-sqlite, syncs with postgres via electric sql. passkey-only auth.
 
+![habits](./preview.png)
+
 ## stack
 
 | layer      | choice                                        |
@@ -77,6 +79,16 @@ flowchart TB
 - **writes** flow down: tanstack db -> /api/sync -> drizzle -> postgres
 - **reads** stream up: postgres -> electric -> shape proxy -> tanstack db -> opfs cache
 
-## deployment
+## self-hosting
 
-configured for railway via `railway.json` and `Dockerfile`.
+this command will run everything (postgres, electric, the app) and serve it at `http://localhost:5173`:
+
+```bash
+docker compose --profile full up -d --build
+```
+
+migrations run on startup and the localhost defaults are enough to register a passkey and try it out.
+
+to put it online, set your own `BETTER_AUTH_SECRET` (`openssl rand -base64 32`) and point `RP_ID` and `AUTH_ORIGIN` at your domain over https.
+
+under the hood it's a node server, a postgres database (with `wal_level=logical`), and an electric instance. `railway.json` is a working example for deployment on railway.
