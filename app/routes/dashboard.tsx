@@ -45,7 +45,7 @@ export function clientLoader() {
 clientLoader.hydrate = true as const
 
 export function HydrateFallback() {
-	return <DashboardSkeleton />
+	return <HabitMatrixLoader />
 }
 
 const SKELETON_NAME_WIDTHS = ['w-14', 'w-18', 'w-16', 'w-20', 'w-15', 'w-22'] as const
@@ -692,13 +692,6 @@ const computeConsistency = (
 	return hits / eligible.length
 }
 
-const SKELETON_MATRIX_CELL = 64
-const SKELETON_MATRIX_CELL_GAP = 10
-const SKELETON_MATRIX_ROW_GAP = 12
-const SKELETON_MATRIX_NAMES_WIDTH = 220
-const SKELETON_MATRIX_TODAY_DOT = 22
-const SKELETON_MATRIX_DAYS = 14
-
 const SkeletonDayHeader = ({ cellSize, todayDot }: { cellSize: number; todayDot: number }) => (
 	<div className="flex flex-col items-center gap-1 pb-3" style={{ width: cellSize }}>
 		<span className="rounded-sm bg-muted/40 px-1.5 text-[11px] font-medium tracking-[0.2px] text-transparent select-none">
@@ -723,47 +716,47 @@ const SkeletonNameLabel = ({ rowIndex, habitName }: { rowIndex: number; habitNam
 const MatrixSkeleton = ({
 	rows,
 	habitNames,
+	view,
+	days,
 }: {
 	rows: readonly string[]
 	habitNames?: string[]
+	view: Extract<View, { mode: 'matrix' }>
+	days: number
 }) => {
-	const dayIndices = Array.from({ length: SKELETON_MATRIX_DAYS }, (_, i) => i)
+	const dayIndices = Array.from({ length: days }, (_, i) => i)
 	return (
 		<div className="flex flex-col">
 			<div className="flex">
-				<div className="shrink-0" style={{ width: SKELETON_MATRIX_NAMES_WIDTH }} />
-				<div className="flex" style={{ gap: SKELETON_MATRIX_CELL_GAP }}>
+				<div className="shrink-0" style={{ width: view.namesColWidth }} />
+				<div className="flex" style={{ gap: view.cellGap }}>
 					{dayIndices.map((i) => (
-						<SkeletonDayHeader
-							key={i}
-							cellSize={SKELETON_MATRIX_CELL}
-							todayDot={SKELETON_MATRIX_TODAY_DOT}
-						/>
+						<SkeletonDayHeader key={i} cellSize={view.cellSize} todayDot={view.todayDot} />
 					))}
 				</div>
 			</div>
-			<div className="flex flex-col" style={{ gap: SKELETON_MATRIX_ROW_GAP }}>
+			<div className="flex flex-col" style={{ gap: view.rowGap }}>
 				{rows.map((rowKey, rowIndex) => (
 					<div key={rowKey} className="flex items-center">
 						<div
 							className="flex shrink-0 items-center justify-end gap-2.5 pr-6"
-							style={{ width: SKELETON_MATRIX_NAMES_WIDTH, height: SKELETON_MATRIX_CELL }}
+							style={{ width: view.namesColWidth, height: view.cellSize }}
 						>
 							<SkeletonNameLabel rowIndex={rowIndex} habitName={habitNames?.[rowIndex]} />
 							<div
 								className="w-1.25 bg-divider-soft"
-								style={{ height: SKELETON_MATRIX_CELL - 6, borderRadius: 3 }}
+								style={{ height: view.cellSize - 6, borderRadius: 3 }}
 							/>
 						</div>
-						<div className="flex" style={{ gap: SKELETON_MATRIX_CELL_GAP }}>
+						<div className="flex" style={{ gap: view.cellGap }}>
 							{dayIndices.map((i) => (
 								<div
 									key={i}
 									className="border border-dashed border-divider-soft bg-transparent"
 									style={{
-										width: SKELETON_MATRIX_CELL,
-										height: SKELETON_MATRIX_CELL,
-										borderRadius: Math.round(SKELETON_MATRIX_CELL * 0.13),
+										width: view.cellSize,
+										height: view.cellSize,
+										borderRadius: Math.round(view.cellSize * 0.13),
 									}}
 								/>
 							))}
@@ -847,18 +840,63 @@ const CardsSkeleton = ({
 	)
 }
 
+const LOADER_ROWS = 3
+const LOADER_COLS = 5
+const LOADER_CELL = 16
+const LOADER_GAP = 7
+
+const HabitMatrixLoader = () => (
+	<div className="fixed inset-0 flex items-center justify-center">
+		<div
+			role="status"
+			aria-label="loading habits"
+			className="grid"
+			style={{
+				gridTemplateColumns: `repeat(${LOADER_COLS}, ${LOADER_CELL}px)`,
+				gap: LOADER_GAP,
+			}}
+		>
+			{Array.from({ length: LOADER_ROWS * LOADER_COLS }, (_, i) => {
+				const row = Math.floor(i / LOADER_COLS)
+				const col = i % LOADER_COLS
+				return (
+					<div
+						key={`${row}-${col}`}
+						className="habit-fill-cell border border-dashed border-divider-soft"
+						style={
+							{
+								width: LOADER_CELL,
+								height: LOADER_CELL,
+								borderRadius: Math.round(LOADER_CELL * 0.13),
+								'--fill': habitColorVar(HABIT_COLORS[i % HABIT_COLORS.length]),
+								'--delay': `${(row + col) * 120}ms`,
+							} as CSSProperties
+						}
+					/>
+				)
+			})}
+		</div>
+	</div>
+)
+
 const DashboardSkeleton = ({ habitNames }: { habitNames?: string[] }) => {
 	const rows = habitNames?.length ? habitNames : DASHBOARD_SKELETON_ROWS
+	const view = useResponsiveView()
+	const reservedWidth = view.mode === 'matrix' ? view.namesColWidth : CARD_RESERVED_WIDTH
+	const [measureRef, fittingDays] = useFittingDays({
+		cellSize: view.cellSize,
+		cellGap: view.cellGap,
+		reservedWidth,
+	})
 
 	return (
-		<div>
+		<div ref={measureRef}>
 			<DashboardToolbar rangeLabel="" weekOffset={0} skeleton />
-			<div className="hidden sm:block">
-				<MatrixSkeleton rows={rows} habitNames={habitNames} />
-			</div>
-			<div className="sm:hidden">
+			{view.mode === 'matrix' ? (
+				<MatrixSkeleton rows={rows} habitNames={habitNames} view={view} days={fittingDays} />
+			) : (
 				<CardsSkeleton rows={rows} habitNames={habitNames} />
-			</div>
+			)}
 		</div>
 	)
 }

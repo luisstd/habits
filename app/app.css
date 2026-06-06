@@ -174,3 +174,30 @@
 		@apply font-sans;
 	}
 }
+
+@keyframes habit-fill {
+	0%,
+	65%,
+	100% {
+		background: transparent;
+		border-color: var(--divider-soft);
+	}
+	30% {
+		background: var(--fill);
+		border-color: transparent;
+	}
+}
+
+.habit-fill-cell {
+	animation: habit-fill 2s ease-in-out infinite;
+	animation-delay: var(--delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.habit-fill-cell {
+		animation: none;
+		background: var(--fill);
+		border-color: transparent;
+		opacity: 0.4;
+	}
+}
