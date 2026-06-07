@@ -12,6 +12,7 @@ import {
 	useState,
 } from 'react'
 import { useOutletContext } from 'react-router'
+import { toast } from 'sonner'
 import { ConsistencyBar } from '~/components/consistency-bar'
 import { ThemeToggle } from '~/components/theme-toggle'
 import { Button } from '~/components/ui/button'
@@ -386,8 +387,8 @@ const MatrixHabitRow = ({
 						type="button"
 						onClick={() => onDelete(habit.id)}
 						className="rounded-md p-0.5 text-muted-foreground outline-none hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-						title="delete habit"
-						aria-label={`delete ${habit.name}`}
+						title="archive habit"
+						aria-label={`archive ${habit.name}`}
 					>
 						<DeleteHabitIcon />
 					</button>
@@ -485,63 +486,22 @@ const MatrixView = ({
 
 type CardProps = {
 	habit: HabitRowData
-	index: number
 	days: string[]
 	today: string
 	completionSet: Set<string>
 	consistency: number
 	onToggle: (habitId: string, date: string) => void
-	onDelete: (id: string) => void
 }
 
-const HabitCard = ({
-	habit,
-	index,
-	days,
-	today,
-	completionSet,
-	consistency,
-	onToggle,
-	onDelete,
-}: CardProps) => {
-	const { ref, handleRef, isDragSource } = useSortable({
-		id: habit.id,
-		index,
-		group: 'habits',
-	})
+const HabitCard = ({ habit, days, today, completionSet, consistency, onToggle }: CardProps) => {
 	const colorVar = habitColorVar(habit.color)
 
 	return (
-		<div
-			ref={ref}
-			className={cn(
-				'group/card border-t border-divider-soft py-4 pr-5 pl-7 first:border-t-0',
-				isDragSource && 'opacity-50',
-			)}
-		>
+		<div className="group/card border-t border-divider-soft py-4 pr-5 pl-7 first:border-t-0">
 			<div className="mb-3 flex items-center justify-between gap-2">
 				<span className="min-w-0 truncate text-[17px] font-medium tracking-[-0.2px]">
 					{habit.name}
 				</span>
-				<div className="flex items-center gap-1">
-					<button
-						type="button"
-						ref={handleRef}
-						className="cursor-grab touch-none rounded-md p-0.5 text-muted-foreground opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100 active:cursor-grabbing"
-						tabIndex={-1}
-						aria-label="drag to reorder"
-					>
-						<GripVertical className="size-4" />
-					</button>
-					<button
-						type="button"
-						onClick={() => onDelete(habit.id)}
-						className="rounded-md p-1 text-muted-foreground opacity-0 outline-none transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background group-focus-within/card:opacity-100 group-hover/card:opacity-100"
-						aria-label={`delete ${habit.name}`}
-					>
-						<DeleteHabitIcon />
-					</button>
-				</div>
 			</div>
 			<div className="relative flex" style={{ gap: MOBILE_CELL_GAP }}>
 				<ConsistencyBar
@@ -630,7 +590,6 @@ const CardsView = ({
 	completionSet,
 	consistencyByHabit,
 	onToggle,
-	onDelete,
 }: {
 	habits: HabitRowData[]
 	days: string[]
@@ -638,21 +597,18 @@ const CardsView = ({
 	completionSet: Set<string>
 	consistencyByHabit: Map<string, number>
 	onToggle: (habitId: string, date: string) => void
-	onDelete: (id: string) => void
 }) => (
 	<div className="-mx-4 flex flex-col sm:-mx-6">
 		<MobileDayHeader days={days} today={today} />
-		{habits.map((habit, index) => (
+		{habits.map((habit) => (
 			<HabitCard
 				key={habit.id}
 				habit={habit}
-				index={index}
 				days={days}
 				today={today}
 				completionSet={completionSet}
 				consistency={consistencyByHabit.get(habit.id) ?? 0}
 				onToggle={onToggle}
-				onDelete={onDelete}
 			/>
 		))}
 	</div>
@@ -978,9 +934,23 @@ const HabitTracker = () => {
 
 	const handleDeleteHabit = useCallback(
 		(id: string) => {
-			habitCollection.delete(id)
+			const name = normalizedHabits.find((habit) => habit.id === id)?.name
+			habitCollection.update(id, (draft) => {
+				draft.archived = true
+			})
+			toast(name ? `Archived ${name}` : 'Habit archived', {
+				action: {
+					label: 'Undo',
+					onClick: () => {
+						habitCollection.update(id, (draft) => {
+							draft.archived = false
+						})
+					},
+				},
+				duration: 8000,
+			})
 		},
-		[habitCollection],
+		[habitCollection, normalizedHabits],
 	)
 
 	const handleToggle = useCallback(
@@ -1064,7 +1034,6 @@ const HabitTracker = () => {
 						completionSet={completionSet}
 						consistencyByHabit={consistencyByHabit}
 						onToggle={handleToggle}
-						onDelete={handleDeleteHabit}
 					/>
 				) : (
 					<MatrixView

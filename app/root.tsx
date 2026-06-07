@@ -13,6 +13,7 @@ import {
 import '@fontsource-variable/urbanist/index.css'
 import './app.css'
 
+import { Toaster } from '~/components/ui/sonner'
 import { getThemeScript, isThemePreference, type ThemePreference, themeCookie } from '~/lib/theme'
 import type { Route } from './+types/root'
 
@@ -58,6 +59,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			</head>
 			<body className="bg-background text-foreground">
 				{children}
+				<Toaster />
 				<ScrollRestoration />
 				<Scripts />
 			</body>
