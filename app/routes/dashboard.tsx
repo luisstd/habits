@@ -127,7 +127,7 @@ const AddHabitDialog = ({
 					onChange={(e) => setName(e.target.value)}
 					onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
 					placeholder="habit name"
-					className="h-9 w-full rounded-full border border-foreground bg-background px-4 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:shadow-brutal-sm"
+					className="h-9 w-full rounded-lg border border-foreground bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:shadow-brutal-sm"
 					autoFocus
 				/>
 				<div className="flex flex-wrap gap-2">
@@ -146,23 +146,8 @@ const AddHabitDialog = ({
 					))}
 				</div>
 				<DialogFooter>
-					<DialogClose
-						render={
-							<Button
-								variant="ghost"
-								size="sm"
-								className="rounded-full border border-divider-strong"
-							/>
-						}
-					>
-						cancel
-					</DialogClose>
-					<Button
-						variant="ghost"
-						size="sm"
-						className="rounded-full border border-divider-strong"
-						onClick={handleSubmit}
-					>
+					<DialogClose render={<Button variant="outline" size="sm" />}>cancel</DialogClose>
+					<Button variant="default" size="sm" onClick={handleSubmit}>
 						add
 					</Button>
 				</DialogFooter>
@@ -190,44 +175,47 @@ const DashboardToolbar = ({
 }) => (
 	<div className="-mx-4 mb-6 flex items-center justify-between gap-3 border-b border-foreground px-4 py-4 sm:-mx-6 sm:mb-8 sm:px-6">
 		<div className="flex min-w-0 items-center gap-2 sm:gap-3.5">
-			<button
-				type="button"
+			<Button
+				variant="ghost"
+				size="icon-sm"
 				onClick={onOlder}
 				disabled={skeleton}
 				aria-label="previous weeks"
-				className="flex size-7 items-center justify-center rounded-full text-ink-soft transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none sm:size-8"
+				className="text-ink-soft sm:size-8"
 			>
 				<ChevronLeft className="size-5" />
-			</button>
+			</Button>
 			<span className="flex min-w-24 items-center justify-center text-center text-base font-medium tracking-[-0.2px] tabular-nums sm:text-[18px]">
 				{skeleton ? <Skeleton className="h-3.5 w-20 rounded-sm bg-muted/50" /> : rangeLabel}
 			</span>
-			<button
-				type="button"
+			<Button
+				variant="ghost"
+				size="icon-sm"
 				onClick={onNewer}
 				disabled={skeleton || weekOffset === 0}
 				aria-label="next weeks"
-				className="flex size-7 items-center justify-center rounded-full text-ink-soft transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-30 sm:size-8"
+				className="text-ink-soft disabled:opacity-30 sm:size-8"
 			>
 				<ChevronRight className="size-5" />
-			</button>
+			</Button>
 			{weekOffset > 0 && (
-				<button
-					type="button"
+				<Button
+					variant="ghost"
+					size="xs"
 					onClick={onReset}
-					className="rounded-full px-2 py-0.5 text-xs text-muted-foreground underline-offset-2 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+					className="text-muted-foreground hover:text-foreground"
 				>
 					today
-				</button>
+				</Button>
 			)}
 		</div>
 		<div className="flex shrink-0 items-center gap-2 sm:gap-3">
 			<Button
-				variant="ghost"
+				variant="outline"
 				size="sm"
 				onClick={onAddHabit}
 				disabled={skeleton}
-				className="shrink-0 rounded-full border border-divider-strong tracking-[-0.1px]"
+				className="shrink-0 tracking-[-0.1px]"
 			>
 				+ <span className="hidden sm:inline">add habit</span>
 				<span className="sm:hidden">add</span>
@@ -388,7 +376,7 @@ const MatrixHabitRow = ({
 					<button
 						type="button"
 						ref={handleRef}
-						className="cursor-grab touch-none rounded-full p-0.5 text-muted-foreground active:cursor-grabbing"
+						className="cursor-grab touch-none rounded-md p-0.5 text-muted-foreground active:cursor-grabbing"
 						tabIndex={-1}
 						aria-label="drag to reorder"
 					>
@@ -397,7 +385,7 @@ const MatrixHabitRow = ({
 					<button
 						type="button"
 						onClick={() => onDelete(habit.id)}
-						className="rounded-full p-0.5 text-muted-foreground outline-none hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+						className="rounded-md p-0.5 text-muted-foreground outline-none hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 						title="delete habit"
 						aria-label={`delete ${habit.name}`}
 					>
@@ -539,7 +527,7 @@ const HabitCard = ({
 					<button
 						type="button"
 						ref={handleRef}
-						className="cursor-grab touch-none rounded-full p-0.5 text-muted-foreground opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100 active:cursor-grabbing"
+						className="cursor-grab touch-none rounded-md p-0.5 text-muted-foreground opacity-0 transition-opacity group-focus-within/card:opacity-100 group-hover/card:opacity-100 active:cursor-grabbing"
 						tabIndex={-1}
 						aria-label="drag to reorder"
 					>
@@ -548,7 +536,7 @@ const HabitCard = ({
 					<button
 						type="button"
 						onClick={() => onDelete(habit.id)}
-						className="rounded-full p-1 text-muted-foreground opacity-0 outline-none transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background group-focus-within/card:opacity-100 group-hover/card:opacity-100"
+						className="rounded-md p-1 text-muted-foreground opacity-0 outline-none transition-opacity hover:text-destructive focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background group-focus-within/card:opacity-100 group-hover/card:opacity-100"
 						aria-label={`delete ${habit.name}`}
 					>
 						<DeleteHabitIcon />
