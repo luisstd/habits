@@ -8,15 +8,18 @@ export function useForegroundAuthCheck() {
 	const lastCheckRef = useRef(0)
 
 	useEffect(() => {
-		const checkAuth = async () => {
+		const checkAuth = async ({ force = false } = {}) => {
 			const now = Date.now()
-			if (now - lastCheckRef.current < DEBOUNCE_MS) return
+			if (!force && now - lastCheckRef.current < DEBOUNCE_MS) return
 
 			lastCheckRef.current = now
 			try {
 				const { authClient } = await import('~/lib/auth.client')
-				const { data: session } = await authClient.getSession()
-				if (!session) {
+				const { data: session, error } = await authClient.getSession()
+				// A network failure (e.g. offline) is reported via `error`
+				// rather than a thrown exception — only a clean "no session"
+				// response means the user is actually logged out.
+				if (!session && !error) {
 					navigate('/login')
 				}
 			} catch {
@@ -32,8 +35,11 @@ export function useForegroundAuthCheck() {
 			}
 		}
 
+		// The sync layer only dispatches this on a real 401, and by then the
+		// shape stream has already stopped — debouncing here would leave the
+		// user on a dead-sync dashboard with no redirect.
 		const onAuthExpired = () => {
-			void checkAuth()
+			void checkAuth({ force: true })
 		}
 
 		document.addEventListener('visibilitychange', onVisibilityChange)

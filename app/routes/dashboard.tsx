@@ -1074,8 +1074,12 @@ export default function Dashboard() {
 	useEffect(() => {
 		let cancelled = false
 
+		// On a user switch the previous collections are closed by the cleanup
+		// below — drop them from state so they can't render in the meantime.
+		setCollections(null)
+
 		import('~/lib/collections.client')
-			.then(({ createHabitCollections }) => createHabitCollections(window.location.origin))
+			.then(({ createHabitCollections }) => createHabitCollections(window.location.origin, userId))
 			.then((c) => {
 				if (cancelled) {
 					return Promise.resolve(c.close()).catch(() => undefined)
@@ -1101,7 +1105,7 @@ export default function Dashboard() {
 			cancelled = true
 			void closeRef.current?.()
 		}
-	}, [])
+	}, [userId])
 
 	if (persistenceInitError) {
 		return (
